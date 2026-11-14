@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Drive | Explore Local. Travel Premium. - Intercity & Outstation Cabs</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#294940',
+                            900: '#17372F',
+                            950: '#0D241E'
+                        },
+                        gold: {
+                            400: '#E4D2A5',
+                            500: '#C7AA75',
+                            600: '#967746'
+                        },
+                        ivory: {
+                            50: '#FCFBF7',
+                            100: '#F2F4EF'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Cormorant Garamond', 'serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F2F4EF;
+            color: #17372F;
+        }
+        h1, h2, h3 {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+        }
+        .gold-gradient {
+            background: linear-gradient(135deg, #E4D2A5 0%, #C7AA75 100%);
+        }
+        .navy-gradient {
+            background: linear-gradient(135deg, #294940 0%, #17372F 100%);
+        }
+        .gold-glow {
+            box-shadow: 0 10px 25px -5px rgba(199, 170, 117, 0.3);
+        }
+        .glass-header {
+            background: rgba(13, 36, 30, 0.97);
+            backdrop-filter: blur(12px);
+        }
+        .glass-card {
+            background: rgba(252, 251, 247, 0.94);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(199, 170, 117, 0.2);
+        }
+        .hero-surface {
+            background-image: linear-gradient(135deg, rgba(228, 210, 165, 0.07), transparent 45%), repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 14px);
+        }
+        .brand-intro {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            background-color: #0D241E;
+            background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 18px);
+            color: #FCFBF7;
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 550ms ease, visibility 550ms ease;
+        }
+        .brand-intro.is-done {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .brand-intro-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+            text-align: center;
+            animation: logo-arrive 850ms cubic-bezier(.2, .75, .25, 1) both;
+        }
+        .brand-intro-mark {
+            position: relative;
+            display: grid;
+            width: 204px;
+            height: 204px;
+            place-items: center;
+        }
+        .brand-intro-mark::before {
+            position: absolute;
+            inset: 0;
+            border: 1px solid rgba(228, 210, 165, 0.35);
+            border-top-color: #E4D2A5;
+            border-radius: 50%;
+            content: '';
+            animation: logo-orbit 6s linear infinite;
+        }
+        .brand-intro-mark::after {
+            position: absolute;
+            inset: 8px;
+            border: 1px solid rgba(228, 210, 165, 0.15);
+            border-radius: 50%;
+            content: '';
+        }
+        .brand-intro-logo {
+            z-index: 1;
+            width: 148px;
+            height: 136px;
+            border: 4px solid rgba(228, 210, 165, 0.8);
+            border-radius: 50%;
+            background: #FCFBF7;
+            object-fit: contain;
+            padding: 7px;
+            box-shadow: 0 12px 38px rgba(0, 0, 0, 0.22);
+        }
+        .brand-intro-name {
+            margin: 0;
+            color: #FCFBF7;
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 34px;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .brand-intro-tagline {
+            margin: -10px 0 0;
+            color: #D5C49D;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .brand-intro-progress {
+            width: 82px;
+            height: 2px;
+            overflow: hidden;
+            background: rgba(228, 210, 165, 0.2);
+        }
+        .brand-intro-progress::after {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #E4D2A5;
+            content: '';
+            transform: scaleX(0);
+            transform-origin: left;
+            animation: intro-progress 1300ms ease-out both;
+        }
+        .brand-intro-skip {
+            position: absolute;
+            right: max(20px, env(safe-area-inset-right));
+            bottom: max(18px, env(safe-area-inset-bottom));
+            border: 0;
+            background: transparent;
+            color: #D5C49D;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 12px;
+        }
+        .brand-intro-skip:hover { color: white; }
+        @keyframes logo-arrive {
+            from { opacity: 0; transform: translateY(12px) scale(.94); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes logo-orbit { to { transform: rotate(360deg); } }
+        @keyframes intro-progress { to { transform: scaleX(1); } }
+        @media (prefers-reduced-motion: reduce) {
+            .brand-intro-content, .brand-intro-mark::before, .brand-intro-progress::after {
+                animation-duration: 1ms;
+            }
+            .brand-intro { transition-duration: 1ms; }
+        }
+        /* Floating assistant pulse */
+        .pulse-gold {
+            animation: pulse-animation 2s infinite;
+        }
+        @keyframes pulse-animation {
+            0% { box-shadow: 0 0 0 0 rgba(199, 170, 117, 0.5); }
+            70% { box-shadow: 0 0 0 14px rgba(199, 170, 117, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(199, 170, 117, 0); }
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #17372F;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #C7AA75;
+            border-radius: 4px;
+        }
+            .sr-only-input { position:absolute; opacity:0; pointer-events:none; }
+        #map { width: 100%; height: 16rem; }
+        .fare-live { transition: opacity .2s; }
+        .fare-live.is-loading { opacity: .55; }
+        .pin-btn { position:absolute; right:6px; top:6px; width:34px; height:34px; border-radius:8px; color:#967746; }
+        .pin-btn:hover, .pin-btn[aria-pressed="true"] { background:#17372F; color:#E4D2A5; }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col justify-between">
+
+    <div id="brand-intro" class="brand-intro" role="status" aria-label="City Drive is loading">
+        <div class="brand-intro-content">
+            <div class="brand-intro-mark">
+                <img src="/assets/logo.jpg" alt="" class="brand-intro-logo" data-bind-logo>
+            </div>
+            <p class="brand-intro-name" data-bind="businessName">City Drive</p>
+            <p class="brand-intro-tagline" data-bind="tagline">Explore Local. Travel Premium.</p>
+            <span class="brand-intro-progress" aria-hidden="true"></span>
+        </div>
+        <button type="button" class="brand-intro-skip" onclick="dismissBrandIntro()">Skip intro</button>
+    </div>
+
+    <!-- Main Navigation Bar -->
+    <header class="sticky top-0 z-40 glass-header border-b border-gold-500/20 text-white shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <a href="#" class="flex items-center gap-3 group">
+                    <img src="/assets/logo.jpg" alt="Logo" data-bind-logo class="w-14 h-12 rounded-lg bg-white object-contain p-1 shadow-md transition-transform group-hover:scale-105">
+                    <div>
+                        <span class="text-2xl font-extrabold tracking-tight text-white block leading-none" id="brand-name">City <span class="text-gold-400">Drive</span></span>
+                        <span class="text-[10px] tracking-widest text-slate-300 font-semibold uppercase block mt-1" data-bind="tagline">Explore Local. Travel Premium.</span>
+                    </div>
+                </a>
+
+                <nav class="hidden md:flex items-center space-x-8 text-sm font-semibold text-slate-200">
+                    <a href="#estimator" class="hover:text-gold-400 transition-colors">Book Cab</a>
+                    <a href="#tariff" class="hover:text-gold-400 transition-colors">Car Rates</a>
+                    <a href="#routes" class="hover:text-gold-400 transition-colors">Popular Routes</a>
+                    <a href="#highlights" class="hover:text-gold-400 transition-colors">Why Choose Us</a>
+                    <a href="#faq" class="hover:text-gold-400 transition-colors">FAQs</a>
+                </nav>
+
+                <div class="hidden lg:flex items-center gap-3">
+                    <a data-phone="primary" href="#" class="gold-gradient text-navy-950 px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-md hover:brightness-110 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-headset text-sm"></i> Call to Book
+                    </a>
+                </div>
+
+                <button id="mobile-menu-btn" class="md:hidden text-gold-400 hover:text-white text-2xl focus:outline-none" aria-label="Menu">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="mobile-menu" class="hidden md:hidden bg-navy-900 border-b border-navy-800 px-4 pt-3 pb-6 space-y-3">
+            <a href="#estimator" class="block py-2 text-slate-200 hover:text-gold-400 font-medium">Book Cab</a>
+            <a href="#tariff" class="block py-2 text-slate-200 hover:text-gold-400 font-medium">Car Rates</a>
+            <a href="#routes" class="block py-2 text-slate-200 hover:text-gold-400 font-medium">Popular Routes</a>
+            <a href="#highlights" class="block py-2 text-slate-200 hover:text-gold-400 font-medium">Why Choose Us</a>
+            <a href="#faq" class="block py-2 text-slate-200 hover:text-gold-400 font-medium">FAQs</a>
+            <a id="mobile-admin-link" href="/admin" class="flex items-center gap-2 border-t border-navy-800 pt-4 pb-1 text-gold-400 hover:text-white font-semibold">
+                <i class="fa-solid fa-lock text-xs"></i> Admin Portal
+            </a>
+            <div class="pt-3 border-t border-navy-800 flex flex-col gap-2">
+                <a data-phone="primary" data-phone-label="Call: " href="#" class="py-2.5 rounded-xl gold-gradient text-navy-950 font-bold text-xs text-center"><i class="fa-solid fa-phone mr-1"></i> <span></span></a>
+                <a data-phone="alternate" data-phone-label="Alt Call: " href="#" class="py-2.5 rounded-xl bg-navy-800 text-slate-200 font-bold text-xs text-center border border-navy-700"><i class="fa-solid fa-phone mr-1"></i> <span></span></a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section with Fare Calculator -->
+    <section id="estimator" class="hero-surface relative py-12 lg:py-20 bg-navy-900 text-white overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+
+                <!-- Hero Left Copy -->
+                <div class="lg:col-span-5 space-y-6 text-center lg:text-left lg:pt-6">
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gold-500/10 border border-gold-500/30 text-gold-400 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-award"></i> <span data-bind="heroBadge">PREMIUM INTERCITY & OUTSTATION CAR SERVICE</span>
+                    </div>
+                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight" data-bind="heroTitle">Your Trusted Partner For Intercity Travel</h1>
+                    <p class="text-slate-300 text-sm sm:text-base leading-relaxed" data-bind="heroText"></p>
+
+                    <div class="grid grid-cols-2 gap-3 pt-2 text-left max-w-md mx-auto lg:mx-0">
+                        <div class="flex items-center gap-2.5 bg-navy-800/80 p-2.5 rounded-xl border border-navy-700"><i class="fa-solid fa-car-side text-gold-400 text-base"></i><span class="text-xs font-semibold text-slate-200">Sedan & SUV Fleet</span></div>
+                        <div class="flex items-center gap-2.5 bg-navy-800/80 p-2.5 rounded-xl border border-navy-700"><i class="fa-solid fa-user-check text-gold-400 text-base"></i><span class="text-xs font-semibold text-slate-200">Verified Drivers</span></div>
+                        <div class="flex items-center gap-2.5 bg-navy-800/80 p-2.5 rounded-xl border border-navy-700"><i class="fa-solid fa-moon text-gold-400 text-base"></i><span class="text-xs font-semibold text-slate-200">Night Service Available</span></div>
+                        <div class="flex items-center gap-2.5 bg-navy-800/80 p-2.5 rounded-xl border border-navy-700"><i class="fa-solid fa-receipt text-gold-400 text-base"></i><span class="text-xs font-semibold text-slate-200">Transparent Rates</span></div>
+                    </div>
+                </div>
+
+                <!-- Hero Right: Booking Widget -->
+                <div class="lg:col-span-7">
+                    <div class="bg-white rounded-2xl p-5 sm:p-8 text-slate-900 shadow-2xl border-2 border-gold-500/30 relative">
+                        <div class="flex rounded-xl bg-slate-100 p-1.5 border border-slate-200 mb-6">
+                            <button type="button" id="tab-oneway" onclick="setTripType('oneway')" class="flex-1 py-2.5 px-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2"><i class="fa-solid fa-arrow-right"></i> One-Way Drop</button>
+                            <button type="button" id="tab-roundtrip" onclick="setTripType('roundtrip')" class="flex-1 py-2.5 px-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2"><i class="fa-solid fa-arrows-rotate"></i> Round Trip</button>
+                            <button type="button" id="tab-local" onclick="setTripType('local')" class="flex-1 py-2.5 px-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2"><i class="fa-solid fa-city"></i> Local Hourly</button>
+                        </div>
+
+                        <form id="booking-form" class="space-y-4" novalidate>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="space-y-1 relative">
+                                    <div class="flex items-center justify-between">
+                                        <label for="pickup-city" class="block text-xs font-bold uppercase tracking-wider text-navy-800">Pick-Up Location</label>
+                                        <button type="button" id="use-location" class="hidden text-[10px] font-extrabold text-gold-600 hover:text-navy-900"><i class="fa-solid fa-crosshairs mr-1"></i>Use my location</button>
+                                    </div>
+                                    <div class="relative">
+                                        <i class="fa-solid fa-location-dot absolute left-3.5 top-3.5 text-gold-600"></i>
+                                        <input type="text" id="pickup-city" required placeholder="Search address, area or city" autocomplete="off"
+                                               class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-12 py-3 text-sm text-slate-900 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 font-medium">
+                                        <button type="button" id="pin-pickup" class="pin-btn hidden" aria-pressed="false" title="Pick on map" aria-label="Pick pickup on map"><i class="fa-solid fa-map-pin"></i></button>
+                                    </div>
+                                    <div id="pickup-suggestions" class="hidden absolute z-30 w-full bg-white border border-slate-200 rounded-xl mt-1 shadow-2xl max-h-56 overflow-y-auto"></div>
+                                </div>
+
+                                <div class="space-y-1 relative" id="drop-city-container">
+                                    <label for="drop-city" class="block text-xs font-bold uppercase tracking-wider text-navy-800">Drop Location</label>
+                                    <div class="relative">
+                                        <i class="fa-solid fa-flag-checkered absolute left-3.5 top-3.5 text-gold-600"></i>
+                                        <input type="text" id="drop-city" placeholder="Search address, area or city" autocomplete="off"
+                                               class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-12 py-3 text-sm text-slate-900 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 font-medium">
+                                        <button type="button" id="pin-drop" class="pin-btn hidden" aria-pressed="false" title="Pick on map" aria-label="Pick drop on map"><i class="fa-solid fa-map-pin"></i></button>
+                                    </div>
+                                    <div id="drop-suggestions" class="hidden absolute z-30 w-full bg-white border border-slate-200 rounded-xl mt-1 shadow-2xl max-h-56 overflow-y-auto"></div>
+                                </div>
+                            </div>
+
+                            <!-- Map -->
+                            <div id="map-panel" class="hidden space-y-2">
+                                <div class="relative overflow-hidden rounded-xl border border-slate-200">
+                                    <div id="map" role="application" aria-label="Trip map"></div>
+                                </div>
+                                <p id="map-hint" class="text-[11px] text-slate-500"><i class="fa-solid fa-hand-pointer text-gold-600 mr-1"></i> Search above, or tap the <i class="fa-solid fa-map-pin text-gold-600"></i> button and then tap the map to mark the exact spot. Drag a marker to fine-tune.</p>
+                            </div>
+
+                            <!-- Route summary -->
+                            <div id="route-summary" class="hidden flex items-center justify-between gap-3 rounded-xl border border-gold-500/40 bg-gold-500/10 px-3.5 py-2.5 text-xs">
+                                <div class="flex items-center gap-2 font-bold text-navy-900"><i class="fa-solid fa-route text-gold-600"></i><span id="route-distance">—</span></div>
+                                <span id="route-source" class="text-right text-[10px] font-semibold text-slate-500"></span>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="space-y-1">
+                                    <label for="pickup-date" class="block text-xs font-bold uppercase tracking-wider text-navy-800">Pick-Up Date</label>
+                                    <div class="relative">
+                                        <i class="fa-solid fa-calendar-days absolute left-3.5 top-3.5 text-gold-600"></i>
+                                        <input type="date" id="pickup-date" required class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-gold-500 font-medium">
+                                    </div>
+                                </div>
+                                <div class="space-y-1">
+                                    <label for="pickup-time" class="block text-xs font-bold uppercase tracking-wider text-navy-800">Pick-Up Time</label>
+                                    <div class="relative">
+                                        <i class="fa-solid fa-clock absolute left-3.5 top-3.5 text-gold-600"></i>
+                                        <input type="time" id="pickup-time" required value="09:00" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-gold-500 font-medium">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="return-date-container" class="hidden space-y-1">
+                                <label for="return-date" class="block text-xs font-bold uppercase tracking-wider text-navy-800">Return Date</label>
+                                <div class="relative">
+                                    <i class="fa-solid fa-calendar-check absolute left-3.5 top-3.5 text-gold-600"></i>
+                                    <input type="date" id="return-date" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-gold-500 font-medium">
+                                </div>
+                            </div>
+
+                            <div class="space-y-2 pt-1">
+                                <span class="block text-xs font-bold uppercase tracking-wider text-navy-800">Select Car Class</span>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="car-type-selector" role="radiogroup" aria-label="Car class"></div>
+                            </div>
+
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <input type="checkbox" id="luggage-carrier" class="w-4 h-4 text-gold-500 rounded border-slate-300 focus:ring-gold-500">
+                                    <label for="luggage-carrier" class="text-xs font-bold text-navy-900 cursor-pointer">Luggage Carrier Required on Roof</label>
+                                </div>
+                                <span class="text-xs font-extrabold text-gold-600" id="luggage-price">+₹300</span>
+                            </div>
+
+                            <!-- Live fare -->
+                            <div id="live-fare" class="fare-live rounded-xl navy-gradient text-white p-4" aria-live="polite">
+                                <p class="text-xs text-slate-300">Choose pick-up and drop locations to see your fare.</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="space-y-1">
+                                    <label for="cust-name" class="block text-xs font-bold uppercase tracking-wider text-navy-800">Your Full Name</label>
+                                    <input type="text" id="cust-name" required placeholder="Name" autocomplete="name" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-gold-500 font-medium">
+                                </div>
+                                <div class="space-y-1">
+                                    <label for="cust-phone" class="block text-xs font-bold uppercase tracking-wider text-navy-800">Contact Number</label>
+                                    <input type="tel" id="cust-phone" inputmode="numeric" maxlength="10" required placeholder="10 Digit Mobile Number" autocomplete="tel-national" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-gold-500 font-medium">
+                                </div>
+                            </div>
+
+                            <p id="form-error" class="min-h-[1rem] text-xs font-bold text-red-700" role="alert"></p>
+
+                            <button type="submit" id="submit-btn" class="w-full py-4 rounded-xl gold-gradient text-navy-950 font-black text-base shadow-xl gold-glow hover:brightness-105 transition-all flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-calculator text-lg"></i> Review Fare & Book
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Car Rates & Tariff Section -->
+    <section id="tariff" class="py-16 bg-ivory-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-12 space-y-2">
+                <span class="text-gold-600 text-xs font-extrabold uppercase tracking-widest">Clear & Fixed Pricing</span>
+                <h2 class="text-3xl font-black text-navy-900">Vehicle Tariff Rates</h2>
+                <p class="text-slate-600 text-sm">Pick the car that suits your trip. Rates are per kilometre with a transparent driver allowance.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8" id="tariff-cards-grid"></div>
+        </div>
+    </section>
+
+    <!-- Popular Intercity Routes Section -->
+    <section id="routes" class="py-16 bg-navy-900 text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+                <div>
+                    <span class="text-gold-400 text-xs font-extrabold uppercase tracking-widest">Popular Journeys</span>
+                    <h2 class="text-3xl font-black text-white">Frequent Outstation Routes</h2>
+                    <p class="text-slate-400 text-sm mt-1">Select any route to auto-fill booking details</p>
+                </div>
+                <div class="flex flex-wrap gap-2" id="route-filters"></div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="routes-grid"></div>
+        </div>
+    </section>
+
+    <!-- Why Choose -->
+    <section id="highlights" class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-2xl mx-auto mb-12">
+                <span class="text-gold-600 text-xs font-extrabold uppercase tracking-widest">Why Choose Us</span>
+                <h2 class="text-3xl font-black text-navy-900">Designed For Premium Intercity Travel</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200 hover:border-gold-500 transition-all text-center space-y-3">
+                    <div class="w-14 h-14 mx-auto rounded-2xl bg-navy-900 text-gold-400 flex items-center justify-center text-2xl"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                    <h3 class="font-bold text-navy-900 text-lg">One-Way Billing</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">Pay exclusively for your drop distance. No return km calculations or empty return fares.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200 hover:border-gold-500 transition-all text-center space-y-3">
+                    <div class="w-14 h-14 mx-auto rounded-2xl bg-navy-900 text-gold-400 flex items-center justify-center text-2xl"><i class="fa-solid fa-user-shield"></i></div>
+                    <h3 class="font-bold text-navy-900 text-lg">Verified Drivers</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">Punctual, background-checked drivers trained for highway safety and polite behavior.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200 hover:border-gold-500 transition-all text-center space-y-3">
+                    <div class="w-14 h-14 mx-auto rounded-2xl bg-navy-900 text-gold-400 flex items-center justify-center text-2xl"><i class="fa-solid fa-spray-can-sparkles"></i></div>
+                    <h3 class="font-bold text-navy-900 text-lg">Clean & Sanitized</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">Every vehicle is thoroughly vacuumed, disinfected, and air-conditioned prior to pickup.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200 hover:border-gold-500 transition-all text-center space-y-3">
+                    <div class="w-14 h-14 mx-auto rounded-2xl bg-navy-900 text-gold-400 flex items-center justify-center text-2xl"><i class="fa-solid fa-headset"></i></div>
+                    <h3 class="font-bold text-navy-900 text-lg">24/7 Helpline</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">Call <span data-phone-text="primary"></span> or WhatsApp anytime for route changes, queries, or assistance.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="py-16 bg-navy-900 text-white">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <span class="text-gold-400 text-xs font-extrabold uppercase tracking-widest">Clear Doubts</span>
+                <h2 class="text-3xl font-black text-white">Frequently Asked Questions</h2>
+            </div>
+            <div class="space-y-4" id="faq-container"></div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-navy-950 text-slate-400 text-xs py-12 border-t border-navy-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                <div class="space-y-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-9 h-9 rounded-xl bg-navy-900 border border-gold-500 flex items-center justify-center text-gold-400 font-bold"><i class="fa-solid fa-car-side"></i></div>
+                        <span class="text-xl font-extrabold text-white" id="footer-brand-name">City <span class="text-gold-400">Drive</span></span>
+                    </div>
+                    <p class="leading-relaxed text-slate-400"><span data-bind="tagline"></span> Reliable outstation drop taxi services across Chennai, Bengaluru, Coimbatore, Madurai, and all towns in India.</p>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold text-sm mb-3">24/7 Helpline</h4>
+                    <ul class="space-y-2">
+                        <li><a data-phone="primary" data-phone-label="Primary: " href="#" class="hover:text-gold-400"><i class="fa-solid fa-phone text-gold-500 mr-2"></i><span></span></a></li>
+                        <li><a data-phone="alternate" data-phone-label="Alternate: " href="#" class="hover:text-gold-400"><i class="fa-solid fa-phone text-slate-500 mr-2"></i><span></span></a></li>
+                        <li><a data-instagram href="#" target="_blank" rel="noopener" class="hover:text-gold-400"><i class="fa-brands fa-instagram text-pink-500 mr-2"></i><span></span></a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold text-sm mb-3">Popular Hubs</h4>
+                    <ul class="space-y-1.5 text-slate-400">
+                        <li>Chennai Outstation Drop</li><li>Bengaluru Intercity Taxi</li><li>Coimbatore Hill Station Cabs</li><li>Madurai & Trichy Drop Taxi</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold text-sm mb-3">Service Hours</h4>
+                    <p class="leading-relaxed">24 Hours a Day, 365 Days a Year. Night Pickup available with zero surge pricing.</p>
+                </div>
+            </div>
+            <div class="pt-8 border-t border-navy-800/80 flex flex-col sm:flex-row justify-between items-center text-slate-500 gap-4">
+                <p>&copy; 2026 <span data-bind="businessName">City Drive</span> Travel Services. All rights reserved.</p>
+                <div class="flex gap-4">
+                    <a data-instagram href="#" target="_blank" rel="noopener" class="text-slate-400 hover:text-gold-400 text-lg" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                    <a data-whatsapp href="#" target="_blank" rel="noopener" class="text-slate-400 hover:text-emerald-400 text-lg" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+                    <a id="footer-admin-link" href="/admin" class="text-slate-400 hover:text-gold-400 text-xs font-semibold self-center">Admin Portal</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Contact options -->
+    <div class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+        <div id="floating-menu" class="hidden flex-col items-end gap-2 transition-all duration-300">
+            <a data-instagram href="#" target="_blank" rel="noopener" class="flex items-center gap-2 bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white font-bold text-xs px-4 py-2.5 rounded-full shadow-xl hover:scale-105 transition-transform">
+                <span data-instagram-label>Instagram</span><i class="fa-brands fa-instagram text-base"></i>
+            </a>
+            <a data-whatsapp data-whatsapp-text="Hi, I want to book a cab" href="#" target="_blank" rel="noopener" class="flex items-center gap-2 bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-full shadow-xl hover:scale-105 transition-transform">
+                <span>WhatsApp Chat</span><i class="fa-brands fa-whatsapp text-base"></i>
+            </a>
+            <a data-phone="primary" data-phone-label="Call Primary " href="#" class="flex items-center gap-2 gold-gradient text-navy-950 font-black text-xs px-4 py-2.5 rounded-full shadow-xl hover:scale-105 transition-transform">
+                <span></span><i class="fa-solid fa-phone text-base"></i>
+            </a>
+            <a data-phone="alternate" data-phone-label="Call Alt " href="#" class="flex items-center gap-2 bg-navy-800 border border-gold-500/40 text-slate-100 font-bold text-xs px-4 py-2.5 rounded-full shadow-xl hover:scale-105 transition-transform">
+                <span></span><i class="fa-solid fa-phone text-base"></i>
+            </a>
+        </div>
+        <button onclick="toggleFloatingMenu()" aria-label="Contact options" class="w-14 h-14 rounded-full gold-gradient text-navy-950 text-2xl flex items-center justify-center shadow-2xl pulse-gold hover:scale-110 transition-transform">
+            <i class="fa-solid fa-headset" id="floating-btn-icon"></i>
+        </button>
+    </div>
+
+    <!-- AI Assistant -->
+    <div class="fixed bottom-6 left-6 z-50">
+        <section id="ai-chat-panel" class="hidden absolute bottom-16 left-0 w-[min(22rem,calc(100vw-3rem))] overflow-hidden rounded-2xl border border-gold-500/40 bg-white shadow-2xl" aria-label="Trip help chat">
+            <div class="flex items-center justify-between bg-navy-900 px-4 py-3 text-white">
+                <div class="flex items-center gap-2">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-full gold-gradient text-navy-950"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                    <div><h2 class="text-sm font-extrabold">Trip Assistant</h2><p class="text-[10px] text-slate-300">Trip help, anytime</p></div>
+                </div>
+                <button type="button" onclick="toggleCityDriveAI()" class="h-9 w-9 rounded-lg text-slate-300 hover:bg-navy-800 hover:text-white" aria-label="Close chat"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="ai-chat-messages" class="h-72 space-y-3 overflow-y-auto bg-slate-50 p-4" aria-live="polite">
+                <p class="max-w-[90%] rounded-xl rounded-tl-sm bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-sm">Hi! Ask me about routes, fares, cars, or how to request a booking. A booking is confirmed only when the manager replies.</p>
+            </div>
+            <form id="ai-chat-form" class="flex gap-2 border-t border-slate-200 bg-white p-3">
+                <input id="ai-chat-input" type="text" required maxlength="300" placeholder="Ask about your trip..." class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-xs text-slate-900 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20" aria-label="Ask a question">
+                <button type="submit" class="h-10 w-10 shrink-0 rounded-lg gold-gradient text-navy-950" aria-label="Send question"><i class="fa-solid fa-arrow-up"></i></button>
+            </form>
+        </section>
+        <button type="button" onclick="toggleCityDriveAI()" class="flex h-14 items-center gap-2 rounded-full border-2 border-white bg-navy-900 px-4 text-sm font-extrabold text-white shadow-xl hover:bg-navy-800" aria-controls="ai-chat-panel" aria-expanded="false" id="ai-chat-toggle">
+            <i class="fa-solid fa-comment-dots text-gold-400 text-lg"></i><span>Trip Help</span>
+        </button>
+    </div>
+
+    <!-- Fare Breakdown Modal -->
+    <div id="fare-modal" class="fixed inset-0 z-50 hidden bg-navy-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white max-w-lg w-full rounded-2xl border-2 border-gold-500 p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-navy-900 text-gold-400 flex items-center justify-center font-bold"><i class="fa-solid fa-receipt"></i></div>
+                    <h3 class="text-lg font-black text-navy-900">Itemized Fare Breakdown</h3>
+                </div>
+                <button onclick="closeFareModal()" class="text-slate-400 hover:text-navy-900 text-xl" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="modal-breakdown-content" class="space-y-4 text-sm"></div>
+            <p id="modal-error" class="mt-3 text-xs font-bold text-red-700" role="alert"></p>
+            <div class="mt-6 pt-4 border-t border-slate-200 flex gap-3">
+                <button onclick="closeFareModal()" class="flex-1 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-all text-xs">Modify Trip</button>
+                <button id="confirm-btn" onclick="confirmAndSubmitReservation()" class="flex-[2] py-3 rounded-xl gold-gradient text-navy-950 font-black hover:brightness-105 transition-all text-xs flex items-center justify-center gap-2 shadow-lg">
+                    Confirm & Reserve Now <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Confirmation Modal -->
+    <div id="confirmation-modal" class="fixed inset-0 z-50 hidden bg-navy-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white max-w-md w-full rounded-2xl border-2 border-gold-500 p-6 shadow-2xl text-center">
+            <div id="modal-loading-state" class="py-8 space-y-4">
+                <div class="relative w-16 h-16 mx-auto flex items-center justify-center">
+                    <div class="absolute inset-0 rounded-full border-4 border-slate-200 border-t-gold-500 animate-spin"></div>
+                    <i class="fa-solid fa-car text-gold-600 text-xl"></i>
+                </div>
+                <div>
+                    <h4 class="text-lg font-black text-navy-900">Processing Your Reservation...</h4>
+                    <p class="text-xs text-slate-500 mt-1">Sending your booking request.</p>
+                </div>
+            </div>
+
+            <div id="modal-success-state" class="hidden space-y-5">
+                <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center text-3xl"><i class="fa-solid fa-circle-check"></i></div>
+                <div>
+                    <span id="result-badge" class="px-2.5 py-1 rounded bg-amber-100 text-amber-900 text-[10px] font-black uppercase tracking-wider">Request Not Yet Confirmed</span>
+                    <h3 id="booking-result-heading" class="text-2xl font-black text-navy-900 mt-2">Sending Your Request</h3>
+                    <p class="text-xs text-slate-500 mt-1">Booking Ref: <span id="res-ref-id" class="text-navy-900 font-bold"></span></p>
+                </div>
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 text-left text-xs space-y-2">
+                    <div class="flex justify-between gap-3"><span class="text-slate-500">Cab Type:</span><span class="font-bold text-navy-900 text-right" id="res-car-type"></span></div>
+                    <div class="flex justify-between gap-3"><span class="text-slate-500">Route:</span><span class="font-bold text-navy-900 text-right" id="res-route"></span></div>
+                    <div class="flex justify-between gap-3"><span class="text-slate-500">Total Est. Fare:</span><span class="font-extrabold text-gold-600" id="res-total"></span></div>
+                </div>
+                <p id="booking-notification-message" class="text-[11px] leading-relaxed text-slate-600"></p>
+                <a id="booking-whatsapp-link" href="#" target="_blank" rel="noopener" class="hidden w-full rounded-xl bg-emerald-700 py-3 text-xs font-black text-white shadow-lg transition-colors hover:bg-emerald-800">
+                    <i class="fa-brands fa-whatsapp mr-1 text-base"></i> Open WhatsApp & Send Request
+                </a>
+                <button onclick="resetAndFinish()" class="w-full py-3 rounded-xl gold-gradient text-navy-950 font-black text-xs shadow-lg">Done / Book Another</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { computeFare, isNightTime } from '/fare.js';
+        window.computeFare = computeFare;
+        window.isNightTime = isNightTime;
+    </script>
+    <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#10362e">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="CD Admin">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/admin-app/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/admin-app/apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="/admin-app/icon-192.png">
+    <title>City Drive | Booking Desk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light;
+            --forest: #10362e; --forest-soft: #244c41; --ink: #1d302b; --muted: #66756e; --line: #dce4dc;
+            --paper: #f2f4ef; --white: #fffefa; --brass: #c7aa75; --brass-pale: #eee3ca; --red: #a8463d; --green: #32704f;
+            font-family: Inter, system-ui, sans-serif;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink); padding-bottom: env(safe-area-inset-bottom); }
+        button, input, select, textarea { font: inherit; }
+        button { cursor: pointer; }
+        [hidden] { display: none !important; }
+        a { color: inherit; }
+        .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 76px; padding: calc(12px + env(safe-area-inset-top)) max(18px, calc((100% - 1360px) / 2)) 12px; background: var(--forest); color: white; position: sticky; top: 0; z-index: 20; }
+        .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .brand img { width: 50px; height: 44px; border-radius: 6px; background: white; object-fit: contain; padding: 3px; flex: none; }
+        .brand-title { margin: 0; font-family: 'Cormorant Garamond', Georgia, serif; font-size: 26px; line-height: 1; }
+        .brand-subtitle { margin: 5px 0 0; color: #c7d3cc; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+        .top-actions { display: flex; gap: 8px; align-items: center; }
+        .page { width: min(1360px, 100%); margin: 0 auto; padding: 24px 18px 110px; }
+        .eyebrow { margin: 0 0 6px; color: #887247; font-size: 11px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; }
+        h1 { margin: 0; font-family: 'Cormorant Garamond', Georgia, serif; font-size: 36px; line-height: 1.05; }
+        h2 { margin: 0; font-size: 17px; }
+        h3 { margin: 0; font-size: 15px; color: var(--forest); }
+        .page-copy { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+        .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+        .button { min-height: 42px; padding: 0 15px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); color: var(--ink); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
+        .button:hover { border-color: var(--brass); }
+        .button:disabled { opacity: .55; cursor: default; }
+        .button-primary { border-color: var(--forest); background: var(--forest); color: white; }
+        .button-primary:hover { background: var(--forest-soft); }
+        .button-danger { color: var(--red); }
+        .button-small { min-height: 34px; padding: 0 11px; font-size: 11px; }
+        .button-quiet { background: transparent; color: #dfe9e3; border-color: #658077; }
+        .field { width: 100%; min-width: 0; min-height: 42px; padding: 0 11px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); font-size: 14px; }
+        textarea.field { padding: 10px 11px; min-height: 72px; resize: vertical; font-size: 13px; }
+        .field:focus, .status-select:focus { outline: 2px solid var(--brass); outline-offset: 1px; }
+        label.lbl { display: block; margin: 0 0 5px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; }
+
+        .tabs { display: flex; gap: 4px; margin: 0 0 18px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab { flex: none; min-height: 44px; padding: 0 15px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }
+        .tab[aria-selected="true"] { border-bottom-color: var(--brass); color: var(--forest); }
+        .badge-count { display: inline-block; min-width: 18px; margin-left: 5px; padding: 1px 5px; border-radius: 9px; background: var(--red); color: white; font-size: 10px; text-align: center; }
+
+        .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .stat { min-height: 90px; padding: 14px 16px; border: 1px solid var(--line); border-top: 2px solid var(--brass); background: var(--white); border-radius: 0 0 6px 6px; }
+        .stat-label { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
+        .stat-value { display: block; margin-top: 8px; color: var(--forest); font-family: 'Cormorant Garamond', Georgia, serif; font-size: 30px; font-weight: 700; line-height: 1; }
+
+        .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-bottom: 0; background: var(--white); flex-wrap: wrap; }
+        .toolbar-tools { display: flex; gap: 8px; flex: 1; justify-content: flex-end; flex-wrap: wrap; }
+        .toolbar-tools .field { width: auto; flex: 1 1 200px; max-width: 320px; }
+        .toolbar-tools select.field { flex: 0 1 150px; }
+        .table-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--white); }
+        table { width: 100%; min-width: 980px; border-collapse: collapse; text-align: left; }
+        th { padding: 12px 13px; border-bottom: 1px solid var(--line); background: #f8f9f5; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase; white-space: nowrap; }
+        td { padding: 12px 13px; border-bottom: 1px solid #e8ece7; vertical-align: top; font-size: 12px; }
+        tr.row-new td:first-child { box-shadow: inset 3px 0 0 var(--brass); }
+        tr:last-child td { border-bottom: 0; }
+        .primary-text { display: block; color: var(--ink); font-weight: 800; }
+        .secondary-text { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+        .status-select { min-height: 34px; padding: 0 24px 0 8px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font-size: 12px; font-weight: 700; }
+        .pill { display: inline-block; padding: 4px 8px; border-radius: 4px; background: #f3eee2; color: #806539; font-size: 10px; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+        .pill[data-state="sent"], .pill[data-status="completed"] { background: #e5f1e9; color: var(--green); }
+        .pill[data-status="new"] { background: #fbe9d4; color: #96551a; }
+        .pill[data-status="cancelled"], .pill[data-state="failed"] { background: #f6e1de; color: var(--red); }
+        .pill[data-status="contacted"], .pill[data-status="assigned"] { background: #e3ecf6; color: #2f5a8a; }
+        .empty { padding: 44px 18px; color: var(--muted); text-align: center; font-size: 13px; }
+        .cards { display: none; }
+        .booking-card { margin-bottom: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); }
+        .booking-card[data-status="new"] { border-left: 4px solid var(--brass); }
+        .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+        .card-route { margin: 10px 0; color: var(--forest); font-size: 15px; font-weight: 800; overflow-wrap: anywhere; }
+        .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .card-label { display: block; margin-bottom: 3px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
+        .card-value { font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+        .card-actions { display: flex; gap: 8px; margin-top: 12px; }
+        .card-actions > * { flex: 1; }
+        .error { min-height: 18px; margin: 10px 0 0; color: var(--red); font-size: 12px; }
+        .muted { color: var(--muted); font-size: 11px; }
+
+        .panel { padding: 16px; border: 1px solid var(--line); border-top: 2px solid var(--brass); background: var(--white); border-radius: 0 0 8px 8px; margin-bottom: 14px; }
+        .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+        .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+        .span-all { grid-column: 1 / -1; }
+        .car-card { display: grid; grid-template-columns: 190px 1fr; gap: 16px; }
+        .car-card.is-off { opacity: .6; }
+        .photo { position: relative; width: 100%; aspect-ratio: 4 / 3; border: 1px dashed var(--brass); border-radius: 8px; background: var(--paper) center / cover no-repeat; display: grid; place-items: center; color: var(--muted); font-size: 11px; overflow: hidden; }
+        .photo-actions { margin-top: 8px; display: grid; gap: 6px; }
+        .car-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+        .switch { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .switch input { width: 20px; height: 20px; accent-color: var(--forest); }
+        .row-edit { display: grid; grid-template-columns: 1fr 1fr 90px 100px auto; gap: 8px; align-items: end; padding: 10px 0; border-bottom: 1px solid var(--line); }
+        .row-edit:last-child { border-bottom: 0; }
+        .faq-edit { padding: 12px 0; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+        .hint { margin: 10px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+        .savebar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px max(18px, calc((100% - 1360px) / 2)) calc(10px + env(safe-area-inset-bottom)); background: var(--white); border-top: 1px solid var(--line); box-shadow: 0 -6px 18px rgba(16, 54, 46, .08); }
+        .savebar p { margin: 0; font-size: 12px; font-weight: 700; color: var(--muted); }
+        .savebar p[data-dirty="true"] { color: #96551a; }
+        .savebar p[data-ok="true"] { color: var(--green); }
+
+        .status-list { display: grid; gap: 10px; }
+        .status-item { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fbfbf8; }
+        .dot { flex: none; width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; background: #c58b37; }
+        .dot[data-ok="true"] { background: #3e8764; }
+        .status-item strong { display: block; font-size: 13px; }
+        .status-item span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+        dialog { width: min(640px, calc(100% - 20px)); max-height: calc(100vh - 20px); padding: 0; border: 0; border-top: 3px solid var(--brass); border-radius: 10px; background: var(--white); color: var(--ink); box-shadow: 0 20px 60px rgba(0, 0, 0, .3); }
+        dialog::backdrop { background: rgba(13, 36, 30, .6); }
+        .dlg-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--white); }
+        .dlg-body { padding: 14px 18px 18px; display: grid; gap: 14px; }
+        .kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 10px; font-size: 13px; }
+        .kv dt { color: var(--muted); font-size: 11px; font-weight: 700; }
+        .kv dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+        .fare-lines { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 13px; display: grid; gap: 6px; }
+        .fare-lines div { display: flex; justify-content: space-between; gap: 10px; }
+        .fare-lines .total { border-top: 1px solid var(--line); padding-top: 8px; font-weight: 800; color: var(--forest); }
+        .toast { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 24px); padding: 12px 16px; border-radius: 8px; background: var(--forest); color: white; font-size: 13px; font-weight: 700; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
+
+        .login-shell { display: grid; min-height: calc(100vh - 76px); place-items: center; padding: 24px; }
+        .login { width: min(100%, 390px); padding: 28px; border: 1px solid var(--line); border-top: 3px solid var(--brass); background: var(--white); border-radius: 0 0 8px 8px; }
+        .login h1 { font-size: 34px; }
+        .login-copy { margin: 8px 0 22px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+        .login label { display: block; margin: 14px 0 6px; color: var(--ink); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+        .login .button { width: 100%; margin-top: 18px; }
+
+        @media (max-width: 860px) {
+            .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+            .stat { min-height: 80px; padding: 12px; }
+            .table-wrap { display: none; }
+            .cards { display: block; }
+            .car-card { grid-template-columns: 1fr; }
+            .photo { aspect-ratio: 16 / 9; }
+            .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .row-edit { grid-template-columns: 1fr 1fr; }
+            .row-edit .span-2 { grid-column: 1 / -1; }
+        }
+        @media (max-width: 560px) {
+            .topbar { padding-left: 14px; padding-right: 14px; }
+            .brand-title { font-size: 22px; }
+            .page { padding: 18px 12px 110px; }
+            h1 { font-size: 30px; }
+            .grid2 { grid-template-columns: 1fr; }
+            .kv { grid-template-columns: 100px 1fr; }
+            .toolbar-tools .field, .toolbar-tools select.field { flex: 1 1 100%; max-width: none; }
+            #install-button .label-long { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <img src="/assets/logo.jpg" alt="Logo" id="top-logo">
+            <div>
+                <p class="brand-title">City Drive</p>
+                <p class="brand-subtitle">Booking Desk</p>
+            </div>
+        </div>
+        <div class="top-actions">
+            <button id="install-button" class="button button-small button-quiet" type="button" hidden>⬇ <span class="label-long">Install app</span></button>
+            <button id="logout-button" class="button button-small button-quiet" type="button" hidden>Sign out</button>
+        </div>
+    </header>
+
+    <main id="login-shell" class="login-shell">
+        <form id="login-form" class="login">
+            <p class="eyebrow">Administrator access</p>
+            <h1>Booking Desk</h1>
+            <p class="login-copy">Sign in to manage bookings, prices, cars and website details.</p>
+            <label for="admin-username">Username</label>
+            <input class="field" id="admin-username" name="username" autocomplete="username" autocapitalize="none" required>
+            <label for="admin-password">Password</label>
+            <input class="field" id="admin-password" name="password" type="password" autocomplete="current-password" required>
+            <button class="button button-primary" type="submit">Sign in</button>
+            <p id="login-error" class="error" role="alert"></p>
+            <p id="login-help" class="login-copy" hidden>Admin access is not configured yet. Set ADMIN_USERNAME, ADMIN_PASSWORD (12+ characters) and ADMIN_SESSION_SECRET (32+ characters), then restart the server.</p>
+        </form>
+    </main>
+
+    <main id="dashboard" class="page" hidden>
+        <div class="page-heading">
+            <div>
+                <p class="eyebrow" id="page-eyebrow">Dispatch overview</p>
+                <h1 id="page-title">Booking requests</h1>
+            </div>
+            <a class="button" href="/" target="_blank" rel="noopener">View website ↗</a>
+        </div>
+
+        <nav class="tabs" role="tablist" aria-label="Admin sections">
+            <button class="tab" role="tab" data-tab="bookings" aria-selected="true">Bookings<span id="new-badge" class="badge-count" hidden>0</span></button>
+            <button class="tab" role="tab" data-tab="fleet" aria-selected="false">Cars &amp; prices</button>
+            <button class="tab" role="tab" data-tab="website" aria-selected="false">Website</button>
+            <button class="tab" role="tab" data-tab="content" aria-selected="false">Routes &amp; FAQs</button>
+            <button class="tab" role="tab" data-tab="setup" aria-selected="false">Setup</button>
+        </nav>
+
+        <!-- Bookings -->
+        <section id="view-bookings" role="tabpanel">
+            <div class="stats" aria-label="Booking summary">
+                <div class="stat"><span class="stat-label">All requests</span><span id="stat-total" class="stat-value">0</span></div>
+                <div class="stat"><span class="stat-label">New</span><span id="stat-new" class="stat-value">0</span></div>
+                <div class="stat"><span class="stat-label">In progress</span><span id="stat-progress" class="stat-value">0</span></div>
+                <div class="stat"><span class="stat-label">Completed</span><span id="stat-completed" class="stat-value">0</span></div>
+                <div class="stat"><span class="stat-label">Completed value</span><span id="stat-revenue" class="stat-value">₹0</span></div>
+            </div>
+            <div class="toolbar">
+                <h2>Requests</h2>
+                <div class="toolbar-tools">
+                    <input id="booking-search" class="field" type="search" placeholder="Search name, phone, route, ref" aria-label="Search bookings">
+                    <select id="status-filter" class="field" aria-label="Filter by status">
+                        <option value="">All statuses</option>
+                        <option value="new">New</option><option value="contacted">Contacted</option><option value="assigned">Driver assigned</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
+                    </select>
+                    <button id="refresh-button" class="button" type="button">Refresh</button>
+                    <a class="button" href="/api/admin/bookings.csv" download>Export CSV</a>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Reference / received</th><th>Customer</th><th>Route</th><th>Pickup</th><th>Car / fare</th><th>Alert</th><th>Status</th><th></th></tr></thead>
+                    <tbody id="booking-table-body"></tbody>
+                </table>
+                <p id="booking-table-empty" class="empty" hidden>No booking requests yet.</p>
+            </div>
+            <div id="booking-cards" class="cards"></div>
+            <p id="booking-cards-empty" class="empty cards" hidden>No booking requests yet.</p>
+            <p id="dashboard-error" class="error" role="alert"></p>
+            <p id="last-updated" class="muted" aria-live="polite"></p>
+        </section>
+
+        <!-- Cars & prices -->
+        <section id="view-fleet" role="tabpanel" hidden>
+            <p class="page-copy" style="margin:0 0 14px">Change prices, photos and details of every car. Customers see changes as soon as you save.</p>
+            <div id="car-list"></div>
+            <button id="add-car" class="button" type="button">＋ Add another car</button>
+
+            <div class="panel" style="margin-top:18px">
+                <div class="panel-head"><h3>Trip &amp; fee rules</h3></div>
+                <div class="grid3" id="rules-form"></div>
+                <p class="hint">Round trips are billed for the distance there <em>and</em> back, with the minimum distance and driver allowance applied for each day. Night hours use 24-hour time (22 = 10 PM). Tolls are estimates; final charges may differ.</p>
+            </div>
+        </section>
+
+        <!-- Website -->
+        <section id="view-website" role="tabpanel" hidden>
+            <div class="panel">
+                <div class="panel-head"><h3>Business &amp; contact details</h3></div>
+                <div class="grid2" id="site-form"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-head"><h3>Logo</h3></div>
+                <div class="car-card">
+                    <div><div class="photo" id="logo-preview"></div></div>
+                    <div>
+                        <p class="hint" style="margin-top:0">Shown on the website header, intro screen and this admin. A square or wide logo on a plain background works best.</p>
+                        <div class="photo-actions" style="max-width:260px"><label class="button" style="cursor:pointer">Change logo<input id="logo-file" type="file" accept="image/png,image/jpeg,image/webp" hidden></label></div>
+                        <p id="logo-msg" class="hint"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Routes & FAQs -->
+        <section id="view-content" role="tabpanel" hidden>
+            <div class="panel">
+                <div class="panel-head"><h3>Popular routes</h3><button id="add-route" class="button button-small" type="button">＋ Add route</button></div>
+                <div id="route-list"></div>
+                <p class="hint">These appear in the “Popular Routes” section. When Google Maps is not set up they are also used to work out the distance, so keep the km realistic.</p>
+            </div>
+            <div class="panel">
+                <div class="panel-head"><h3>FAQs</h3><button id="add-faq" class="button button-small" type="button">＋ Add question</button></div>
+                <div id="faq-list"></div>
+                <p class="hint">Tip: type <strong>{minKm}</strong>, <strong>{nightStart}</strong>, <strong>{nightEnd}</strong> or <strong>{tollPerKm}</strong> in an answer and the website fills in your current rule automatically.</p>
+            </div>
+        </section>
+
+        <!-- Setup -->
+        <section id="view-setup" role="tabpanel" hidden>
+            <div class="panel">
+                <div class="panel-head"><h3>System status</h3><button id="recheck" class="button button-small" type="button">Re-check</button></div>
+                <div class="status-list" id="status-list"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-head"><h3>Use this admin as an app on your phone</h3></div>
+                <div class="status-list">
+                    <div class="status-item"><span class="dot" data-ok="true"></span><div><strong>iPhone / iPad (Safari)</strong><span>Open this page in Safari → tap the Share button → <b>Add to Home Screen</b> → Add. It opens full screen like an app.</span></div></div>
+                    <div class="status-item"><span class="dot" data-ok="true"></span><div><strong>Android (Chrome)</strong><span>Tap <b>Install app</b> at the top of this page (or the ⋮ menu → <b>Install app</b> / Add to Home screen).</span></div></div>
+                    <div class="status-item"><span class="dot"></span><div><strong>Needs the live website address</strong><span>Installing works from your hosted https address (for example your Render link), not from localhost.</span></div></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="savebar" class="savebar" hidden>
+        <p id="save-state">All changes saved</p>
+        <button id="save-button" class="button button-primary" type="button">Save changes</button>
+    </div>
+
+    <dialog id="booking-dialog" aria-labelledby="dlg-title">
+        <div class="dlg-head">
+            <div><p class="eyebrow" id="dlg-ref" style="margin:0"></p><h2 id="dlg-title"></h2></div>
+            <button id="dlg-close" class="button button-small" type="button">Close</button>
+        </div>
+        <div class="dlg-body" id="dlg-body"></div>
+    </dialog>
+
+    <script>
+    (() => {
+        const $ = id => document.getElementById(id);
+        const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const inr = v => `₹${Math.round(Number(v) || 0).toLocaleString('en-IN')}`;
+        const statusLabels = { new: 'New', contacted: 'Contacted', assigned: 'Driver assigned', completed: 'Completed', cancelled: 'Cancelled' };
+        const sourceLabels = { google: 'Google Maps road distance', 'customer-map': 'Google Maps road distance (browser)', 'route-table': 'Standard route table', 'straight-line-estimate': 'Straight-line estimate ×1.3', 'default-estimate': 'Default estimate (route unknown)', package: 'Local package' };
+        const tripLabels = { oneway: 'One way', roundtrip: 'Round trip', local: 'Local hourly' };
+
+        let bookings = [];
+        let settings = null;
+        let dirty = false;
+        let currentTab = 'bookings';
+        let knownRefs = null;
+        let deferredInstall = null;
+
+        // ---------- network ----------
+        async function api(path, options = {}) {
+            const response = await fetch(path, { cache: 'no-store', ...options });
+            if (response.status === 401 && !path.endsWith('/login')) { showLogin('Your session expired. Please sign in again.'); throw new Error('Please sign in again.'); }
+            const text = await response.text();
+            let data = {};
+            try { data = text ? JSON.parse(text) : {}; } catch { /* non-JSON */ }
+            if (!response.ok) throw new Error(data.message || `Request failed (${response.status}).`);
+            return data;
+        }
+        const sendJson = (path, method, body) => api(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+        function toast(message) {
+            const node = document.createElement('div');
+            node.className = 'toast';
+            node.textContent = message;
+            document.body.append(node);
+            setTimeout(() => node.remove(), 3500);
+        }
+
+        // ---------- login / session ----------
+        function showLogin(message = '') {
+            $('dashboard').hidden = true; $('savebar').hidden = true; $('logout-button').hidden = true;
+            $('login-shell').hidden = false;
+            $('login-error').textContent = message;
+        }
+        async function showDashboard() {
+            $('login-shell').hidden = true; $('dashboard').hidden = false; $('logout-button').hidden = false;
+            await Promise.all([loadBookings(), loadSettings()]);
+            switchTab(currentTab);
+        }
+
+        $('login-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            $('login-error').textContent = '';
+            const formElement = event.currentTarget;
+            const form = new FormData(formElement);
+            const button = formElement.querySelector('button');
+            button.disabled = true; button.textContent = 'Signing in…';
+            try {
+                await sendJson('/api/admin/login', 'POST', { username: form.get('username'), password: form.get('password') });
+                formElement.reset();
+                await showDashboard();
+            } catch (error) {
+                $('login-error').textContent = error.message;
+            } finally {
+                button.disabled = false; button.textContent = 'Sign in';
+            }
+        });
+        $('logout-button').addEventListener('click', async () => {
+            await fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
+            bookings = []; settings = null; knownRefs = null; dirty = false;
+            showLogin();
+        });
+
+        // ---------- tabs ----------
+        const titles = {
+            bookings: ['Dispatch overview', 'Booking requests'], fleet: ['Fleet', 'Cars & prices'], website: ['Website', 'Business details'],
+            content: ['Website content', 'Routes & FAQs'], setup: ['System', 'Setup & status']
+        };
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(button => button.setAttribute('aria-selected', String(button.dataset.tab === tab)));
+            for (const name of Object.keys(titles)) $(`view-${name}`).hidden = name !== tab;
+            [$('page-eyebrow').textContent, $('page-title').textContent] = titles[tab];
+            $('savebar').hidden = !['fleet', 'website', 'content'].includes(tab);
+            if (tab === 'setup') loadStatus();
+        }
+        document.querySelectorAll('.tab').forEach(button => button.addEventListener('click', () => switchTab(button.dataset.tab)));
+
+        // ---------- bookings ----------
+        async function loadBookings() {
+            $('dashboard-error').textContent = '';
+            try {
+                const list = await api('/api/admin/bookings');
+                const fresh = knownRefs ? list.filter(item => !knownRefs.has(item.reference)) : [];
+                bookings = list;
+                knownRefs = new Set(list.map(item => item.reference));
+                if (fresh.length) {
+                    toast(`${fresh.length} new booking request${fresh.length > 1 ? 's' : ''}`);
+                    if (navigator.vibrate) navigator.vibrate(150);
+                }
+                renderBookings();
+                $('last-updated').textContent = `Updated ${new Intl.DateTimeFormat('en-IN', { timeStyle: 'short' }).format(new Date())} · refreshes every 30 seconds`;
+            } catch (error) {
+                $('dashboard-error').textContent = error.message;
+            }
+        }
+        $('refresh-button').addEventListener('click', loadBookings);
+        $('booking-search').addEventListener('input', renderBookings);
+        $('status-filter').addEventListener('change', renderBookings);
+
+        const formatPickup = b => {
+            const date = new Date(`${b.pickupDate}T12:00:00`);
+            return `${new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(date)} · ${b.pickupTime}`;
+        };
+        const formatDateTime = v => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
+        const fareOf = b => b.finalFare != null ? `${inr(b.finalFare)} final` : `${inr(b.estimatedFare)} est.`;
+
+        function renderBookings() {
+            const query = $('booking-search').value.trim().toLowerCase();
+            const status = $('status-filter').value;
+            const filtered = bookings.filter(b =>
+                (!status || b.status === status)
+                && [b.reference, b.customerName, b.customerPhone, b.pickup, b.dropoff, b.car, b.driverName].join(' ').toLowerCase().includes(query));
+
+            const count = (...s) => bookings.filter(b => s.includes(b.status)).length;
+            $('stat-total').textContent = bookings.length;
+            $('stat-new').textContent = count('new');
+            $('stat-progress').textContent = count('contacted', 'assigned');
+            $('stat-completed').textContent = count('completed');
+            $('stat-revenue').textContent = inr(bookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.finalFare ?? b.estimatedFare ?? 0), 0));
+            const fresh = count('new');
+            $('new-badge').hidden = !fresh; $('new-badge').textContent = fresh;
+            document.title = fresh ? `(${fresh}) City Drive | Booking Desk` : 'City Drive | Booking Desk';
+
+            const message = bookings.length ? 'No bookings match your search.' : 'No booking requests yet.';
+            $('booking-table-empty').textContent = message; $('booking-cards-empty').textContent = message;
+            $('booking-table-empty').hidden = $('booking-cards-empty').hidden = filtered.length > 0;
+
+            $('booking-table-body').innerHTML = filtered.map(b => `
+                <tr class="${b.status === 'new' ? 'row-new' : ''}">
+                    <td><span class="primary-text">${esc(b.reference)}</span><span class="secondary-text">${esc(formatDateTime(b.createdAt))}</span></td>
+                    <td><a class="primary-text" href="tel:+91${esc(b.customerPhone)}">${esc(b.customerName)}</a><span class="secondary-text">${esc(b.customerPhone)}</span></td>
+                    <td><span class="primary-text">${esc(b.pickup)} → ${esc(b.dropoff)}</span><span class="secondary-text">${esc(Math.round(b.billedKm))} km · ${esc(tripLabels[b.tripType] || b.tripType)}</span></td>
+                    <td><span class="primary-text">${esc(formatPickup(b))}</span>${b.returnDate ? `<span class="secondary-text">Return ${esc(b.returnDate)}</span>` : ''}</td>
+                    <td><span class="primary-text">${esc(b.car)}</span><span class="secondary-text">${esc(fareOf(b))}</span></td>
+                    <td>${alertPill(b.notificationStatus)}</td>
+                    <td>${statusSelect(b)}</td>
+                    <td><button class="button button-small" data-open="${esc(b.reference)}" type="button">Details</button></td>
+                </tr>`).join('');
+
+            $('booking-cards').innerHTML = filtered.map(b => `
+                <article class="booking-card" data-status="${esc(b.status)}">
+                    <div class="card-head">
+                        <div><span class="card-label">Reference</span><span class="card-value">${esc(b.reference)}</span></div>
+                        <span class="pill" data-status="${esc(b.status)}">${esc(statusLabels[b.status] || b.status)}</span>
+                    </div>
+                    <p class="card-route">${esc(b.pickup)} → ${esc(b.dropoff)}</p>
+                    <div class="card-grid">
+                        <div><span class="card-label">Customer</span><span class="card-value">${esc(b.customerName)}</span></div>
+                        <div><span class="card-label">Phone</span><a class="card-value" href="tel:+91${esc(b.customerPhone)}">${esc(b.customerPhone)}</a></div>
+                        <div><span class="card-label">Pickup</span><span class="card-value">${esc(formatPickup(b))}</span></div>
+                        <div><span class="card-label">Fare</span><span class="card-value">${esc(fareOf(b))}</span></div>
+                        <div><span class="card-label">Car</span><span class="card-value">${esc(b.car)}</span></div>
+                        <div><span class="card-label">Received</span><span class="card-value">${esc(formatDateTime(b.createdAt))}</span></div>
+                    </div>
+                    <div class="card-actions">
+                        <a class="button" href="tel:+91${esc(b.customerPhone)}">📞 Call</a>
+                        <button class="button button-primary" data-open="${esc(b.reference)}" type="button">Details</button>
+                    </div>
+                </article>`).join('');
+        }
+
+        const alertPill = status => `<span class="pill" data-state="${esc(status)}">${status === 'sent' ? 'Manager alerted' : status === 'failed' ? 'Alert failed' : 'Dashboard only'}</span>`;
+        const statusSelect = b => `<select class="status-select" data-status-for="${esc(b.reference)}" aria-label="Status for ${esc(b.reference)}">${Object.entries(statusLabels).map(([v, l]) => `<option value="${v}" ${b.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+
+        document.addEventListener('change', async event => {
+            const select = event.target.closest('[data-status-for]');
+            if (!select) return;
+            select.disabled = true;
+            try {
+                const updated = await sendJson(`/api/admin/bookings/${encodeURIComponent(select.dataset.statusFor)}`, 'PATCH', { status: select.value });
+                bookings = bookings.map(b => b.reference === updated.reference ? updated : b);
+            } catch (error) { toast(error.message); }
+            renderBookings();
+        });
+        document.addEventListener('click', event => {
+            const open = event.target.closest('[data-open]');
+            if (open) openBooking(open.dataset.open);
+        });
+
+        // ---------- booking detail ----------
+        function mapsLink(b) {
+            const point = (lat, lng, name) => Number.isFinite(lat) && Number.isFinite(lng) ? `${lat},${lng}` : encodeURIComponent(name);
+            return `https://www.google.com/maps/dir/?api=1&origin=${point(b.pickupLat, b.pickupLng, b.pickup)}&destination=${point(b.dropoffLat, b.dropoffLng, b.dropoff)}&travelmode=driving`;
+        }
+        function openBooking(reference) {
+            const b = bookings.find(item => item.reference === reference);
+            if (!b) return;
+            const f = b.breakdown;
+            $('dlg-ref').textContent = b.reference;
+            $('dlg-title').textContent = `${b.customerName} · ${b.car}`;
+            const waText = encodeURIComponent(`Hi ${b.customerName}, this is City Drive about your booking ${b.reference} (${b.pickup} to ${b.dropoff}, ${b.pickupDate} ${b.pickupTime}). `);
+            $('dlg-body').innerHTML = `
+                <div class="card-actions" style="margin:0">
+                    <a class="button" href="tel:+91${esc(b.customerPhone)}">📞 Call</a>
+                    <a class="button" href="https://wa.me/91${esc(b.customerPhone)}?text=${waText}" target="_blank" rel="noopener">WhatsApp</a>
+                    ${b.dropoff ? `<a class="button" href="${mapsLink(b)}" target="_blank" rel="noopener">Open route ↗</a>` : ''}
+                </div>
+                <dl class="kv">
+                    <dt>Trip</dt><dd>${esc(tripLabels[b.tripType] || b.tripType)}</dd>
+                    <dt>Pick-up</dt><dd>${esc(b.pickup)}</dd>
+                    <dt>Drop</dt><dd>${esc(b.dropoff)}</dd>
+                    <dt>When</dt><dd>${esc(formatPickup(b))}${b.returnDate ? ` → return ${esc(b.returnDate)}` : ''}</dd>
+                    <dt>Phone</dt><dd>${esc(b.customerPhone)}</dd>
+                    ${b.distanceKm != null ? `<dt>Road distance</dt><dd>${esc(b.distanceKm)} km <span class="muted">(${esc(sourceLabels[b.distanceSource] || b.distanceSource || '')})</span></dd>` : ''}
+                    <dt>Received</dt><dd>${esc(formatDateTime(b.createdAt))}</dd>
+                </dl>
+                ${f ? `<div class="fare-lines">
+                    <div><span>${esc(f.billedKm)} km × ${inr(f.ratePerKm)}</span><span>${inr(f.baseFare)}</span></div>
+                    <div><span>Driver allowance${f.days > 1 ? ` (${f.days} days)` : ''}</span><span>${inr(f.driverAllowance)}</span></div>
+                    ${f.nightAllowance ? `<div><span>Night allowance</span><span>${inr(f.nightAllowance)}</span></div>` : ''}
+                    ${f.luggageCost ? `<div><span>Roof carrier</span><span>${inr(f.luggageCost)}</span></div>` : ''}
+                    <div><span>Est. toll &amp; permit</span><span>${inr(f.tollEstimate)}</span></div>
+                    <div class="total"><span>Estimated total</span><span>${inr(f.total)}</span></div>
+                </div>` : `<p class="muted">Estimated fare ${inr(b.estimatedFare)}</p>`}
+                <form id="dlg-form" class="grid2">
+                    <div><label class="lbl" for="d-status">Status</label><select id="d-status" class="field">${Object.entries(statusLabels).map(([v, l]) => `<option value="${v}" ${b.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+                    <div><label class="lbl" for="d-final">Final fare agreed (₹)</label><input id="d-final" class="field" type="number" min="0" inputmode="numeric" value="${esc(b.finalFare ?? '')}" placeholder="${esc(b.estimatedFare)}"></div>
+                    <div><label class="lbl" for="d-driver">Driver name</label><input id="d-driver" class="field" maxlength="60" value="${esc(b.driverName || '')}"></div>
+                    <div><label class="lbl" for="d-driver-phone">Driver phone</label><input id="d-driver-phone" class="field" inputmode="numeric" maxlength="10" value="${esc(b.driverPhone || '')}"></div>
+                    <div class="span-all"><label class="lbl" for="d-note">Internal note</label><textarea id="d-note" class="field" maxlength="500">${esc(b.adminNote || '')}</textarea></div>
+                    <div class="span-all"><button class="button button-primary" style="width:100%" type="submit">Save booking</button><p id="dlg-error" class="error"></p></div>
+                </form>`;
+            $('dlg-form').addEventListener('submit', async event => {
+                event.preventDefault();
+                $('dlg-error').textContent = '';
+                try {
+                    const updated = await sendJson(`/api/admin/bookings/${encodeURIComponent(reference)}`, 'PATCH', {
+                        status: $('d-status').value,
+                        finalFare: $('d-final').value === '' ? null : Number($('d-final').value),
+                        driverName: $('d-driver').value,
+                        driverPhone: $('d-driver-phone').value,
+                        adminNote: $('d-note').value
+                    });
+                    bookings = bookings.map(item => item.reference === reference ? updated : item);
+                    renderBookings();
+                    $('booking-dialog').close();
+                    toast('Booking saved');
+                } catch (error) { $('dlg-error').textContent = error.message; }
+            });
+            $('booking-dialog').showModal();
+        }
+        $('dlg-close').addEventListener('click', () => $('booking-dialog').close());
+        $('booking-dialog').addEventListener('click', event => { if (event.target === event.currentTarget) event.currentTarget.close(); });
+
+        // ---------- settings editor ----------
+        async function loadSettings() {
+            try {
+                settings = await api('/api/admin/settings');
+                setDirty(false);
+                renderSettings();
+            } catch (error) { toast(error.message); }
+        }
+
+        function setDirty(value, message) {
+            dirty = value;
+            const label = $('save-state');
+            label.dataset.dirty = String(value);
+            label.dataset.ok = String(!value && Boolean(message));
+            label.textContent = value ? 'You have unsaved changes' : (message || 'All changes saved');
+            $('save-button').disabled = !value;
+        }
+        window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
+
+        function renderSettings() {
+            renderCars(); renderRules(); renderSite(); renderRoutes(); renderFaqs();
+        }
+
+        const input = (label, attrs, value, extra = '') => `<div class="${extra}"><label class="lbl">${label}</label><input class="field" ${attrs} value="${esc(value)}"></div>`;
+
+        function renderCars() {
+            $('car-list').innerHTML = settings.cars.map((car, i) => `
+                <div class="panel car-card ${car.active ? '' : 'is-off'}" data-car="${i}">
+                    <div>
+                        <div class="photo" style="${car.image ? `background-image:url('${esc(car.image)}')` : ''}">${car.image ? '' : 'No photo'}</div>
+                        <div class="photo-actions">
+                            <label class="button button-small" style="cursor:pointer">${car.image ? 'Change photo' : 'Upload photo'}<input type="file" accept="image/png,image/jpeg,image/webp" data-car-photo="${i}" hidden></label>
+                            <span class="muted" data-photo-msg="${i}"></span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="grid2">
+                            ${input('Car name', `data-car-field="${i}.name" maxlength="40"`, car.name)}
+                            ${input('Seats / class label', `data-car-field="${i}.subtitle" maxlength="60" placeholder="4 Seater (Comfort)"`, car.subtitle)}
+                            ${input('Models (description)', `data-car-field="${i}.description" maxlength="120" placeholder="Dzire / Etios / Amaze"`, car.description, 'span-all')}
+                        </div>
+                        <div class="grid4" style="margin-top:12px">
+                            ${input('Rate per km (₹)', `type="number" inputmode="decimal" min="0" max="1000" step="0.5" data-car-field="${i}.ratePerKm"`, car.ratePerKm)}
+                            ${input('Driver allowance / day (₹)', `type="number" inputmode="numeric" min="0" step="50" data-car-field="${i}.driverAllowance"`, car.driverAllowance)}
+                            ${input('Night allowance (₹)', `type="number" inputmode="numeric" min="0" step="50" data-car-field="${i}.nightAllowance"`, car.nightAllowance)}
+                            ${input('Roof carrier (₹)', `type="number" inputmode="numeric" min="0" step="50" data-car-field="${i}.luggageCarrierCost"`, car.luggageCarrierCost)}
+                        </div>
+                        <div class="car-actions">
+                            <label class="switch"><input type="checkbox" data-car-active="${i}" ${car.active ? 'checked' : ''}> Available to customers</label>
+                            <span style="flex:1"></span>
+                            <button class="button button-small" type="button" data-car-move="${i}:-1" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
+                            <button class="button button-small" type="button" data-car-move="${i}:1" ${i === settings.cars.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
+                            <button class="button button-small button-danger" type="button" data-car-delete="${i}">Delete</button>
+                        </div>
+                    </div>
+                </div>`).join('');
+        }
+
+        const ruleFields = [
+            ['minimumBillableKm', 'Minimum billable distance (km / day)', 1, 1], ['tollPerKm', 'Estimated toll per km (₹)', 0, 0.5],
+            ['fallbackIntercityKm', 'Estimate if route unknown (km)', 1, 1], ['localPackageKm', 'Local package distance (km)', 1, 1],
+            ['nightStartHour', 'Night charges start (hour 0-23)', 0, 1], ['nightEndHour', 'Night charges end (hour 0-23)', 0, 1]
+        ];
+        function renderRules() {
+            $('rules-form').innerHTML = ruleFields.map(([key, label, min, step]) =>
+                input(label, `type="number" inputmode="decimal" min="${min}" step="${step}" data-rule="${key}"`, settings.rules[key])).join('');
+        }
+
+        const siteFields = [
+            ['businessName', 'Business name', 'maxlength="60"'], ['tagline', 'Tagline', 'maxlength="100"'],
+            ['heroBadge', 'Hero badge text', 'maxlength="100"'], ['heroTitle', 'Hero headline', 'maxlength="120"'],
+            ['phonePrimary', 'Primary phone (10 digits)', 'inputmode="numeric" maxlength="10"'], ['phoneAlternate', 'Alternate phone (10 digits)', 'inputmode="numeric" maxlength="10"'],
+            ['whatsapp', 'WhatsApp number with country code', 'inputmode="numeric" maxlength="15" placeholder="917358002724"'], ['instagram', 'Instagram username', 'maxlength="40"']
+        ];
+        function renderSite() {
+            $('site-form').innerHTML = siteFields.map(([key, label, attrs]) => input(label, `data-site="${key}" ${attrs}`, settings.site[key])).join('')
+                + `<div class="span-all"><label class="lbl">Hero paragraph</label><textarea class="field" data-site="heroText" maxlength="400">${esc(settings.site.heroText)}</textarea></div>`;
+            $('logo-preview').style.backgroundImage = settings.site.logo ? `url('${settings.site.logo}')` : '';
+            $('logo-preview').style.backgroundSize = 'contain';
+            $('top-logo').src = settings.site.logo || '/assets/logo.jpg';
+        }
+
+        function renderRoutes() {
+            $('route-list').innerHTML = settings.routes.map((r, i) => `
+                <div class="row-edit">
+                    ${input('From', `data-route="${i}.origin" maxlength="60"`, r.origin)}
+                    ${input('To', `data-route="${i}.destination" maxlength="60"`, r.destination)}
+                    ${input('Km', `type="number" inputmode="numeric" min="1" max="5000" data-route="${i}.distanceKm"`, r.distanceKm)}
+                    ${input('Time', `data-route="${i}.duration" maxlength="20" placeholder="6.5 hrs"`, r.duration)}
+                    <button class="button button-small button-danger" type="button" data-route-delete="${i}" aria-label="Delete route">✕</button>
+                </div>`).join('') || '<p class="muted">No routes yet.</p>';
+        }
+
+        function renderFaqs() {
+            $('faq-list').innerHTML = settings.faqs.map((f, i) => `
+                <div class="faq-edit">
+                    ${input('Question', `data-faq="${i}.question" maxlength="160"`, f.question)}
+                    <div><label class="lbl">Answer</label><textarea class="field" data-faq="${i}.answer" maxlength="600">${esc(f.answer)}</textarea></div>
+                    <div><button class="button button-small button-danger" type="button" data-faq-delete="${i}">Delete question</button></div>
+                </div>`).join('') || '<p class="muted">No questions yet.</p>';
+        }
+
+        // typing updates the in-memory settings object
+        document.addEventListener('input', event => {
+            const t = event.target;
+            if (!settings) return;
+            const set = (obj, key, numeric) => { obj[key] = numeric ? (t.value === '' ? '' : Number(t.value)) : t.value; setDirty(true); };
+            if (t.dataset.carField) { const [i, key] = t.dataset.carField.split('.'); set(settings.cars[i], key, t.type === 'number'); }
+            else if (t.dataset.rule) set(settings.rules, t.dataset.rule, true);
+            else if (t.dataset.site) set(settings.site, t.dataset.site, false);
+            else if (t.dataset.route) { const [i, key] = t.dataset.route.split('.'); set(settings.routes[i], key, t.type === 'number'); }
+            else if (t.dataset.faq) { const [i, key] = t.dataset.faq.split('.'); set(settings.faqs[i], key, false); }
+        });
+
+        document.addEventListener('change', event => {
+            const t = event.target;
+            if (!settings) return;
+            if (t.dataset.carActive !== undefined) {
+                settings.cars[t.dataset.carActive].active = t.checked;
+                setDirty(true);
+                t.closest('.car-card').classList.toggle('is-off', !t.checked);
+            }
+            if (t.dataset.carPhoto !== undefined && t.files[0]) uploadPhoto(t.files[0], url => { settings.cars[t.dataset.carPhoto].image = url; renderCars(); }, $(`view-fleet`).querySelector(`[data-photo-msg="${t.dataset.carPhoto}"]`));
+            if (t.id === 'logo-file' && t.files[0]) uploadPhoto(t.files[0], url => { settings.site.logo = url; renderSite(); }, $('logo-msg'));
+        });
+
+        document.addEventListener('click', event => {
+            const t = event.target.closest('button');
+            if (!t || !settings) return;
+            if (t.dataset.carMove) {
+                const [i, dir] = t.dataset.carMove.split(':').map(Number);
+                [settings.cars[i], settings.cars[i + dir]] = [settings.cars[i + dir], settings.cars[i]];
+                setDirty(true); renderCars();
+            } else if (t.dataset.carDelete !== undefined) {
+                const car = settings.cars[t.dataset.carDelete];
+                if (settings.cars.length <= 1) return toast('Keep at least one car.');
+                if (confirm(`Delete “${car.name || 'this car'}”? Existing bookings are not affected.`)) { settings.cars.splice(t.dataset.carDelete, 1); setDirty(true); renderCars(); }
+            } else if (t.dataset.routeDelete !== undefined) {
+                settings.routes.splice(t.dataset.routeDelete, 1); setDirty(true); renderRoutes();
+            } else if (t.dataset.faqDelete !== undefined) {
+                settings.faqs.splice(t.dataset.faqDelete, 1); setDirty(true); renderFaqs();
+            }
+        });
+
+        $('add-car').addEventListener('click', () => {
+            settings.cars.push({ id: '', name: 'New car', subtitle: '4 Seater', description: '', image: '', ratePerKm: 15, driverAllowance: 400, nightAllowance: 300, luggageCarrierCost: 300, active: false });
+            setDirty(true); renderCars();
+            $('car-list').lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            toast('New car added (hidden until you tick “Available”).');
+        });
+        $('add-route').addEventListener('click', () => { settings.routes.push({ origin: '', destination: '', distanceKm: 100, duration: '' }); setDirty(true); renderRoutes(); });
+        $('add-faq').addEventListener('click', () => { settings.faqs.push({ question: '', answer: '' }); setDirty(true); renderFaqs(); });
+
+        $('save-button').addEventListener('click', async () => {
+            const button = $('save-button');
+            button.disabled = true; button.textContent = 'Saving…';
+            try {
+                const result = await sendJson('/api/admin/settings', 'PUT', settings);
+                settings = result.settings;
+                renderSettings();
+                setDirty(false, 'Saved — website updated');
+            } catch (error) {
+                toast(error.message);
+                setDirty(true);
+            } finally { button.textContent = 'Save changes'; }
+        });
+
+        // ---------- image upload (resized in the browser first) ----------
+        async function prepareImage(file) {
+            if (file.type === 'image/png' && file.size < 500 * 1024) return file;
+            const bitmap = await createImageBitmap(file);
+            const scale = Math.min(1, 1400 / Math.max(bitmap.width, bitmap.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Could not process the image.')), 'image/jpeg', 0.86));
+        }
+        async function uploadPhoto(file, done, messageNode) {
+            const say = text => { if (messageNode) messageNode.textContent = text; };
+            if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return say('Choose a PNG, JPG or WebP photo.');
+            say('Uploading…');
+            try {
+                const blob = await prepareImage(file);
+                const { url } = await api('/api/admin/upload', { method: 'POST', headers: { 'Content-Type': blob.type }, body: blob });
+                setDirty(true);
+                done(url);
+                say('');
+                toast('Photo uploaded — press “Save changes” to publish it.');
+            } catch (error) { say(error.message); }
+        }
+
+        // ---------- setup/status ----------
+        async function loadStatus() {
+            try {
+                const h = await (await fetch('/api/health', { cache: 'no-store' })).json();
+                const items = [
+                    [h.storageBackend === 'supabase', 'Database', h.storageBackend === 'supabase' ? 'Supabase — bookings, prices and photos are stored permanently.' : 'Local files only. Fine on your own computer, but on a hosting service the data can be lost. Set SUPABASE_URL and SUPABASE_SECRET_KEY.'],
+                    [h.googleMapsConfigured, 'Google Maps on the website', h.googleMapsConfigured ? 'Customers can search places and pin locations on the map.' : 'Not set. The website uses the simple city list. Add GOOGLE_MAPS_API_KEY to turn on search and map pins.'],
+                    [h.googleRoutingConfigured, 'Server-side road distance', h.googleRoutingConfigured ? 'Fares use verified Google road distance.' : 'Not set (optional but recommended). Add GOOGLE_MAPS_SERVER_KEY so the server verifies each distance and customers cannot tamper with the price.'],
+                    [h.automaticNotificationsConfigured, 'WhatsApp manager alerts', h.automaticNotificationsConfigured ? 'New bookings are sent to the manager on WhatsApp.' : 'Not set. Bookings still appear here; customers get a button to send the request on WhatsApp.'],
+                    [location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname), 'Secure connection (HTTPS)', location.protocol === 'https:' ? 'This page is served securely.' : 'Use an https address before going live so logins are protected and the app can be installed.']
+                ];
+                $('status-list').innerHTML = items.map(([ok, title, text]) => `<div class="status-item"><span class="dot" data-ok="${ok}"></span><div><strong>${esc(title)}</strong><span>${esc(text)}</span></div></div>`).join('');
+            } catch { $('status-list').innerHTML = '<p class="muted">Could not load status.</p>'; }
+        }
+        $('recheck').addEventListener('click', loadStatus);
+
+        // ---------- install as app ----------
+        window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferredInstall = event; $('install-button').hidden = false; });
+        $('install-button').addEventListener('click', async () => {
+            if (!deferredInstall) return;
+            deferredInstall.prompt();
+            await deferredInstall.userChoice;
+            deferredInstall = null; $('install-button').hidden = true;
+        });
+        window.addEventListener('appinstalled', () => { $('install-button').hidden = true; });
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+            navigator.serviceWorker.register('/admin-sw.js').catch(() => {});
+        }
+
+        // ---------- start ----------
+        (async function start() {
+            try {
+                const h = await (await fetch('/api/health')).json();
+                if (!h.adminDashboardConfigured) { $('login-help').hidden = false; return; }
+                const session = await fetch('/api/admin/session');
+                if (session.ok) await showDashboard();
+            } catch { $('login-error').textContent = 'Could not connect to the booking server.'; }
+        })();
+
+        setInterval(() => { if (!$('dashboard').hidden && currentTab === 'bookings' && !$('booking-dialog').open) loadBookings(); }, 30000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('dashboard').hidden) loadBookings(); });
+    })();
+    </script>
+</body>
+</html>
