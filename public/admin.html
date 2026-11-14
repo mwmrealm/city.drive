@@ -334,7 +334,7 @@
         const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         const inr = v => `₹${Math.round(Number(v) || 0).toLocaleString('en-IN')}`;
         const statusLabels = { new: 'New', contacted: 'Contacted', assigned: 'Driver assigned', completed: 'Completed', cancelled: 'Cancelled' };
-        const sourceLabels = { google: 'Google Maps road distance', 'customer-map': 'Google Maps road distance (browser)', 'route-table': 'Standard route table', 'straight-line-estimate': 'Straight-line estimate ×1.3', 'default-estimate': 'Default estimate (route unknown)', package: 'Local package' };
+        const sourceLabels = { osrm: 'OpenStreetMap road distance', google: 'Google Maps road distance', 'customer-map': 'Google Maps road distance (browser)', 'route-table': 'Standard route table', 'straight-line-estimate': 'Straight-line estimate ×1.3', 'default-estimate': 'Default estimate (route unknown)', package: 'Local package' };
         const tripLabels = { oneway: 'One way', roundtrip: 'Round trip', local: 'Local hourly' };
 
         let bookings = [];
@@ -778,10 +778,12 @@
         async function loadStatus() {
             try {
                 const h = await (await fetch('/api/health', { cache: 'no-store' })).json();
+                const provider = h.mapProvider || (h.googleMapsConfigured ? 'google' : 'osm');
+                const routing = h.routingProvider || (h.googleRoutingConfigured ? 'google' : 'none');
                 const items = [
                     [h.storageBackend === 'supabase', 'Database', h.storageBackend === 'supabase' ? 'Supabase — bookings, prices and photos are stored permanently.' : 'Local files only. Fine on your own computer, but on a hosting service the data can be lost. Set SUPABASE_URL and SUPABASE_SECRET_KEY.'],
-                    [h.googleMapsConfigured, 'Google Maps on the website', h.googleMapsConfigured ? 'Customers can search places and pin locations on the map.' : 'Not set. The website uses the simple city list. Add GOOGLE_MAPS_API_KEY to turn on search and map pins.'],
-                    [h.googleRoutingConfigured, 'Server-side road distance', h.googleRoutingConfigured ? 'Fares use verified Google road distance.' : 'Not set (optional but recommended). Add GOOGLE_MAPS_SERVER_KEY so the server verifies each distance and customers cannot tamper with the price.'],
+                    [provider !== 'off', 'Map on the website', provider === 'google' ? 'Google Maps — customers can search places and pin locations.' : provider === 'osm' ? 'OpenStreetMap (free) — customers can search places and pin locations. Add GOOGLE_MAPS_API_KEY any time to switch to Google.' : 'Maps are turned off. Customers use the simple city list.'],
+                    [routing !== 'none', 'Road distance for fares', routing === 'google' ? 'Verified by Google Routes on the server.' : routing === 'osrm' ? 'Measured on the server with OpenStreetMap routing (free, light use). If it is ever unreachable, the fare falls back to an estimate.' : 'Not available. Fares use your route table or an estimate.'],
                     [h.automaticNotificationsConfigured, 'WhatsApp manager alerts', h.automaticNotificationsConfigured ? 'New bookings are sent to the manager on WhatsApp.' : 'Not set. Bookings still appear here; customers get a button to send the request on WhatsApp.'],
                     [location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname), 'Secure connection (HTTPS)', location.protocol === 'https:' ? 'This page is served securely.' : 'Use an https address before going live so logins are protected and the app can be installed.']
                 ];

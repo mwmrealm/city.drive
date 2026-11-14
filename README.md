@@ -1,11 +1,11 @@
 # City Drive – cab booking website, live fare calculator and admin app
 
-* **Website** (`/`) – customers search or pin pick-up and drop on Google Maps, see the real road distance and a **live fare**, and send a booking request.
+* **Website** (`/`) – customers search or pin pick-up and drop on a map (free OpenStreetMap, or Google), see the real road distance and a **live fare**, and send a booking request.
 * **Admin** (`/admin`) – works on phone and desktop and installs like an app. Manage bookings (assign driver, final fare, notes, CSV export), **cars, prices and photos**, contact details, popular routes and FAQs. Nothing needs code changes.
 * **Backend** – Node.js. The server recalculates every fare itself, so a customer cannot change the price from the browser.
 
 ```
-server.js          API + pages          lib/   storage (Supabase / local), settings, Google routing
+server.js          API + pages          lib/   storage (Supabase / local), settings, road routing (OSRM / Google)
 public/index.html  customer website     public/app.js      website logic (maps, live fare)
 public/admin.html  admin app            public/fare.js     fare formula (shared by browser and server)
 supabase/schema.sql  database tables
@@ -31,20 +31,27 @@ Without a Google key the website still works with a simple city list and your sa
 
 All numbers are editable in **Admin → Cars & prices**. The manager still confirms the final fare with the customer.
 
-## 3. Google Maps (search, pin on map, road distance)
+## 3. Maps (free by default)
 
-1. Go to https://console.cloud.google.com, create a project and **enable billing** (Google gives a monthly free credit; a small taxi site normally stays within it).
-2. **APIs & Services → Library → enable:** *Maps JavaScript API*, *Places API (New)*, *Geocoding API*, *Routes API*.
-3. **Credentials → Create API key** (twice):
-   * **Browser key** → restrict *Websites* to your site address (e.g. `https://yoursite.onrender.com/*`) and to *Maps JavaScript API, Places API (New), Geocoding API, Routes API*. Put it in `GOOGLE_MAPS_API_KEY`.
-   * **Server key** → restrict to *Routes API* only. Put it in `GOOGLE_MAPS_SERVER_KEY`. This lets the server verify distances itself (recommended). Without it the browser's distance is used and checked for sanity.
-4. Restart the server. Admin → **Setup** shows green ticks when it works. Set a budget alert in Google Cloud so there are no surprises.
+**Nothing to set up.** The website uses **OpenStreetMap**: customers search places, tap the map to pin pick-up and drop, and the **server measures the real driving distance** with the free OSRM routing service, then applies your prices. No card or account needed.
+
+* Fair use: the free public servers (map tiles, Photon place search, OSRM routing) are meant for light use. A small taxi business is normally fine. If a routing lookup ever fails, the fare falls back to an estimate and the booking still works.
+* Indian address search is not as detailed as Google's, so customers may need to drop a pin for small lanes.
+* Distances are cached for an hour to keep requests low.
+
+**Optional: switch to Google Maps later** (better address search; needs a Google Cloud account with billing). Add these to `.env` / Render and restart:
+
+1. In https://console.cloud.google.com enable **Maps JavaScript API**, **Places API (New)**, **Geocoding API**, **Routes API**.
+2. Create a **browser key** (restrict to your website address + those APIs) -> `GOOGLE_MAPS_API_KEY`.
+3. Create a **server key** (restrict to Routes API) -> `GOOGLE_MAPS_SERVER_KEY`.
+
+Admin -> **Setup** shows which map and routing service is active.
 
 ## 4. Put it online with Supabase (so admin works from any phone)
 
 1. **Supabase:** create a project → *SQL Editor* → paste all of `supabase/schema.sql` → Run. In *Project Settings → API Keys* copy the **Project URL** and a **Secret key** (`sb_secret_…`).
 2. **GitHub:** upload this folder to a private repository (never upload `.env`).
-3. **Render:** *New → Web Service* → your repo → Runtime Node, build `npm ci`, start `npm start`. Add the environment variables: `NODE_ENV=production`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, plus the Google keys.
+3. **Render:** *New → Web Service* → your repo → Runtime Node, build `npm ci`, start `npm start`. Add the environment variables: `NODE_ENV=production`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, plus the Google keys only if you use Google.
 4. Open `https://YOUR-SERVICE.onrender.com/api/health` – `storageBackend` must say `supabase`. Then sign in at `/admin`, change a price, refresh the website.
 5. Free Render services sleep after inactivity (first visit can take ~1 minute). For a live business use a paid plan, and enable Supabase backups.
 

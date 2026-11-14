@@ -89,7 +89,9 @@ app.get('/api/health', (request, response) => {
         automaticNotificationsConfigured: hasWhatsAppConfiguration(),
         adminDashboardConfigured: hasAdminConfiguration(),
         googleMapsConfigured: Boolean(maps.browserMapsKey()),
-        googleRoutingConfigured: Boolean(maps.serverMapsKey())
+        googleRoutingConfigured: Boolean(maps.serverMapsKey()),
+        mapProvider: maps.mapProvider(),
+        routingProvider: maps.routingProvider()
     });
 });
 
@@ -99,10 +101,11 @@ app.get('/api/config', async (request, response) => {
     response.json({
         ...publicSettings(settings),
         maps: {
-            enabled: Boolean(maps.browserMapsKey()),
-            apiKey: maps.browserMapsKey(),
+            enabled: maps.mapProvider() !== 'off',
+            provider: maps.mapProvider(),
+            apiKey: maps.mapProvider() === 'google' ? maps.browserMapsKey() : '',
             mapId: process.env.GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID',
-            serverRouting: Boolean(maps.serverMapsKey())
+            serverRouting: maps.routingProvider() !== 'none'
         }
     });
 });

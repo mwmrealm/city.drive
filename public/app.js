@@ -1,4 +1,4 @@
-// City Drive public website: live fare, Google Maps search / pin / route, booking.
+// City Drive public website: live fare, map search / pin / route (OpenStreetMap or Google), booking.
 'use strict';
 
 const FALLBACK_CITIES = [
@@ -20,7 +20,8 @@ const state = {
     pinMode: null            // 'pickup' | 'dropoff' | null
 };
 
-const maps = { ready: false, google: null, map: null, markers: {}, line: null, geocoder: null, places: null, token: null };
+const maps = { ready: false };   // true once a map provider (OpenStreetMap or Google) has started
+const mapApi = {};               // filled in by the active provider: suggest, reverse, setMarker, drawPath, ...
 let routeSeq = 0;
 let routeTimer = null;
 const $ = id => document.getElementById(id);
@@ -74,7 +75,7 @@ async function init() {
     setupMobileDrawer();
     setTripType('oneway');
     $('ai-chat-form').addEventListener('submit', handleAIQuestion);
-    if (state.config.maps.enabled) loadGoogleMaps();
+    if (state.config.maps.enabled) startMaps();
 }
 
 function applySite() {
@@ -371,7 +372,7 @@ async function showSuggestions(which, text) {
     const seq = ++suggestSeq;
     let items = [];
     try {
-        items = maps.ready ? await googleSuggestions(text) : localSuggestions(text);
+        items = maps.ready ? await mapApi.suggest(text) : localSuggestions(text);
     } catch (error) {
         console.warn('Place search failed', error);
         items = localSuggestions(text);
@@ -413,9 +414,9 @@ function localSuggestions(text) {
 }
 
 async function choosePlace(which, item) {
-    if (item.prediction) {
+    if (item.resolve) {
         try {
-            const place = await placeFromPrediction(item.prediction);
+            const place = await item.resolve();
             setPlace(which, place);
             focusMapOn(which);
         } catch (error) {
@@ -433,8 +434,8 @@ async function resolveTyped(which) {
     const place = state[which];
     if (!maps.ready || !place.name || Number.isFinite(place.lat)) return;
     try {
-        const [first] = await googleSuggestions(place.name);
-        if (first) setPlace(which, await placeFromPrediction(first.prediction));
+        const [first] = await mapApi.suggest(place.name);
+        if (first) setPlace(which, await first.resolve());
     } catch (error) {
         console.warn('Could not resolve typed place', error);
     }
@@ -474,7 +475,7 @@ async function updateRoute() {
     const seq = ++routeSeq;
     clearRouteLine();
     state.routeError = '';
-    // With Google Maps on, wait for a chosen suggestion or pinned spot before pricing.
+    // With maps on, wait for a chosen suggestion or pinned spot before pricing.
     const ready = placesReady() && (state.tripType === 'local' || !maps.ready || coordsReady());
     if (!ready) {
         state.route = null;
@@ -490,9 +491,9 @@ async function updateRoute() {
         if (seq !== routeSeq) return;
         let clientPath = null;
 
-        // No server routing key? Ask the browser's Google Routes library for the real road distance.
-        if (maps.ready && state.tripType !== 'local' && coordsReady() && quote.distanceSource !== 'google') {
-            const clientRoute = await browserRoute();
+        // Server could not measure the road itself? Let the browser's map library try (Google only).
+        if (needsBrowserRoute(quote)) {
+            const clientRoute = await mapApi.browserRoute();
             if (seq !== routeSeq) return;
             if (clientRoute) {
                 quote = await postJson('/api/quote', quotePayload({ distanceKm: clientRoute.km }));
@@ -518,7 +519,13 @@ async function updateRoute() {
     renderFare();
 }
 
+function needsBrowserRoute(quote) {
+    return Boolean(maps.ready && mapApi.browserRoute && state.tripType !== 'local' && coordsReady()
+        && !['google', 'osrm'].includes(quote.distanceSource));
+}
+
 const SOURCE_LABEL = {
+    osrm: 'Driving distance from OpenStreetMap',
     google: 'Driving distance from Google Maps',
     'customer-map': 'Driving distance from Google Maps',
     'route-table': 'Standard route distance',
@@ -604,8 +611,8 @@ async function reviewBooking() {
     try {
         await Promise.all([resolveTyped('pickup'), state.tripType === 'local' ? null : resolveTyped('dropoff')]);
         let quote = await postJson('/api/quote', quotePayload());
-        if (maps.ready && state.tripType !== 'local' && coordsReady() && quote.distanceSource !== 'google') {
-            const clientRoute = await browserRoute();
+        if (needsBrowserRoute(quote)) {
+            const clientRoute = await mapApi.browserRoute();
             if (clientRoute) quote = await postJson('/api/quote', quotePayload({ distanceKm: clientRoute.km }));
         }
         state.lastQuote = quote;
@@ -740,97 +747,242 @@ function resetAndFinish() {
 }
 
 function dismissBrandIntro() {
-    $('brand-intro').classList.add('is-done');
+    $('brand-intro')?.classList.add('is-done');
 }
 
-// ---------- Google Maps ----------
-function loadGoogleMaps() {
-    const { apiKey } = state.config.maps;
-    window.__cityDriveMapsReady = async () => {
-        try {
-            await initMaps();
-        } catch (error) {
-            console.warn('Google Maps could not start; using the built-in city list.', error);
-            maps.ready = false;
+// ---------- Map providers ----------
+// OpenStreetMap (free) is the default. If GOOGLE_MAPS_API_KEY is set on the server, Google is used instead.
+// Each provider fills `mapApi` with the same small set of functions.
+async function startMaps() {
+    const config = state.config.maps;
+    try {
+        $('map-panel').classList.remove('hidden');   // visible first so the map can measure its size
+        if (config.provider === 'google') await startGoogle(config);
+        else await startOsm();
+        maps.ready = true;
+        for (const id of ['pin-pickup', 'pin-drop', 'use-location']) $(id).classList.remove('hidden');
+        if (state.tripType === 'local') $('pin-drop').classList.add('hidden');
+        ['pickup', 'dropoff'].forEach(updateMapMarker);
+        // If the visitor typed something before the map finished loading, resolve it now.
+        if (state.pickup.name || state.dropoff.name) {
+            await Promise.all([resolveTyped('pickup'), state.tripType === 'local' ? null : resolveTyped('dropoff')]);
+            scheduleRoute(0);
         }
-    };
-    window.gm_authFailure = () => {
-        console.warn('Google Maps rejected the API key (check the key, billing and allowed websites).');
+    } catch (error) {
+        console.warn('Maps could not start; using the built-in city list.', error);
         maps.ready = false;
-        $('map-panel').classList.add('hidden');
-        ['pin-pickup', 'pin-drop', 'use-location'].forEach(id => $(id).classList.add('hidden'));
-    };
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly&loading=async&callback=__cityDriveMapsReady`;
-    script.async = true;
-    script.onerror = () => console.warn('Could not load Google Maps; using the built-in city list.');
-    document.head.append(script);
-}
-
-async function initMaps() {
-    const google = window.google;
-    const [{ Map }, markerLib, placesLib, geocodingLib] = await Promise.all([
-        google.maps.importLibrary('maps'),
-        google.maps.importLibrary('marker'),
-        google.maps.importLibrary('places'),
-        google.maps.importLibrary('geocoding')
-    ]);
-    maps.google = google;
-    maps.markerLib = markerLib;
-    maps.places = placesLib;
-    maps.geocoder = new geocodingLib.Geocoder();
-
-    $('map-panel').classList.remove('hidden');
-    maps.map = new Map($('map'), {
-        center: { lat: 13.0827, lng: 80.2707 },
-        zoom: 6,
-        mapId: state.config.maps.mapId,
-        gestureHandling: 'cooperative',
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true
-    });
-    maps.map.addListener('click', event => onMapClick(event.latLng));
-    maps.ready = true;
-    for (const id of ['pin-pickup', 'pin-drop', 'use-location']) $(id).classList.remove('hidden');
-    if (state.tripType === 'local') $('pin-drop').classList.add('hidden');
-    ['pickup', 'dropoff'].forEach(updateMapMarker);
-
-    // If the visitor already typed something before Maps finished loading, resolve it now.
-    if (state.pickup.name || state.dropoff.name) {
-        await Promise.all([resolveTyped('pickup'), state.tripType === 'local' ? null : resolveTyped('dropoff')]);
-        scheduleRoute(0);
+        disableMapUi();
     }
 }
 
-async function googleSuggestions(text) {
-    const { AutocompleteSuggestion, AutocompleteSessionToken } = maps.places;
-    if (!maps.token) maps.token = new AutocompleteSessionToken();
-    const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
-        input: text,
-        includedRegionCodes: ['in'],
-        language: 'en',
-        sessionToken: maps.token
+function disableMapUi() {
+    $('map-panel').classList.add('hidden');
+    ['pin-pickup', 'pin-drop', 'use-location'].forEach(id => $(id).classList.add('hidden'));
+}
+
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error(`Could not load ${src}`));
+        document.head.append(script);
     });
-    return suggestions.filter(item => item.placePrediction).slice(0, 6).map(item => {
-        const prediction = item.placePrediction;
-        return {
-            prediction,
-            name: prediction.text.text,
-            main: prediction.mainText?.text || prediction.text.text,
-            secondary: prediction.secondaryText?.text || ''
+}
+
+function loadStyle(href) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.append(link);
+}
+
+function placeLabel(properties) {
+    const main = properties.name || [properties.housenumber, properties.street].filter(Boolean).join(' ')
+        || properties.district || properties.city || properties.state || '';
+    const parts = [properties.street && properties.street !== main ? properties.street : '', properties.district,
+        properties.city || properties.town || properties.village || properties.county, properties.state]
+        .filter(Boolean).filter(part => part !== main);
+    const unique = [...new Set(parts)];
+    return { main, secondary: unique.join(', '), full: [main, ...unique].filter(Boolean).join(', ').slice(0, 160) };
+}
+
+// ----- OpenStreetMap: Leaflet map, Photon place search -----
+const PHOTON = 'https://photon.komoot.io';
+const INDIA_BBOX = '68.1,6.5,97.4,35.7';
+
+async function startOsm() {
+    loadStyle('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css');
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js');
+    const L = window.L;
+    const map = L.map($('map'), { zoomControl: true, scrollWheelZoom: false }).setView([13.0827, 80.2707], 6);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    map.on('click', event => onMapClick({ lat: event.latlng.lat, lng: event.latlng.lng }));
+    map.on('focus', () => map.scrollWheelZoom.enable());
+    map.on('blur', () => map.scrollWheelZoom.disable());
+    window.setTimeout(() => map.invalidateSize(), 200);
+
+    const markers = {};
+    let line = null;
+
+    mapApi.suggest = async text => {
+        const url = `${PHOTON}/api/?q=${encodeURIComponent(text)}&limit=7&lang=en&bbox=${INDIA_BBOX}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Place search failed (${response.status})`);
+        const data = await response.json();
+        return (data.features || [])
+            .filter(feature => !feature.properties.countrycode || feature.properties.countrycode === 'IN')
+            .slice(0, 6)
+            .map(feature => {
+                const label = placeLabel(feature.properties);
+                const [lng, lat] = feature.geometry.coordinates;
+                return { main: label.main, secondary: label.secondary, name: label.full, resolve: async () => ({ name: label.full, lat, lng }) };
+            });
+    };
+    mapApi.reverse = async point => {
+        const response = await fetch(`${PHOTON}/reverse?lat=${point.lat}&lon=${point.lng}&lang=en`);
+        if (!response.ok) return '';
+        const feature = (await response.json()).features?.[0];
+        return feature ? placeLabel(feature.properties).full : '';
+    };
+    mapApi.setMarker = (which, place, onDrag) => {
+        if (markers[which]) { markers[which].remove(); delete markers[which]; }
+        if (!place || !Number.isFinite(place.lat)) return;
+        const icon = L.divIcon({
+            className: '',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+            html: `<div class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-xs text-white shadow-lg ${which === 'pickup' ? 'bg-emerald-700' : 'bg-red-700'}"><i class="fa-solid ${which === 'pickup' ? 'fa-location-dot' : 'fa-flag-checkered'}"></i></div>`
+        });
+        const marker = L.marker([place.lat, place.lng], { icon, draggable: true, title: which === 'pickup' ? 'Pick-up (drag to adjust)' : 'Drop (drag to adjust)' }).addTo(map);
+        marker.on('dragend', () => { const at = marker.getLatLng(); onDrag({ lat: at.lat, lng: at.lng }); });
+        markers[which] = marker;
+    };
+    mapApi.focus = place => map.setView([place.lat, place.lng], 12);
+    mapApi.fitBoth = (a, b) => map.fitBounds([[a.lat, a.lng], [b.lat, b.lng]], { padding: [40, 40] });
+    mapApi.clearPath = () => { if (line) { line.remove(); line = null; } };
+    mapApi.drawPath = (path, dashed) => {
+        mapApi.clearPath();
+        line = L.polyline(path.map(point => [point.lat, point.lng]), { color: '#17372F', weight: 5, opacity: 0.9, dashArray: dashed ? '8 10' : null }).addTo(map);
+    };
+    mapApi.setCrosshair = on => { map.getContainer().style.cursor = on ? 'crosshair' : ''; };
+}
+
+// ----- Google Maps: Places (New) search, Routes library -----
+async function startGoogle(config) {
+    await new Promise((resolve, reject) => {
+        window.__cityDriveMapsReady = resolve;
+        window.gm_authFailure = () => {
+            console.warn('Google Maps rejected the API key (check the key, billing and allowed websites).');
+            maps.ready = false;
+            disableMapUi();
         };
+        loadScript(`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(config.apiKey)}&v=weekly&loading=async&callback=__cityDriveMapsReady`).catch(reject);
     });
+    const google = window.google;
+    const [{ Map }, markerLib, placesLib, geocodingLib] = await Promise.all([
+        google.maps.importLibrary('maps'), google.maps.importLibrary('marker'),
+        google.maps.importLibrary('places'), google.maps.importLibrary('geocoding')
+    ]);
+    const geocoder = new geocodingLib.Geocoder();
+    const map = new Map($('map'), {
+        center: { lat: 13.0827, lng: 80.2707 }, zoom: 6, mapId: config.mapId, gestureHandling: 'cooperative',
+        mapTypeControl: false, streetViewControl: false, fullscreenControl: true
+    });
+    map.addListener('click', event => onMapClick({ lat: event.latLng.lat(), lng: event.latLng.lng() }));
+    const markers = {};
+    let line = null;
+    let token = null;
+
+    mapApi.suggest = async text => {
+        const { AutocompleteSuggestion, AutocompleteSessionToken } = placesLib;
+        if (!token) token = new AutocompleteSessionToken();
+        const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: text, includedRegionCodes: ['in'], language: 'en', sessionToken: token
+        });
+        return suggestions.filter(item => item.placePrediction).slice(0, 6).map(item => {
+            const prediction = item.placePrediction;
+            const full = prediction.text.text.slice(0, 160);
+            return {
+                main: prediction.mainText?.text || full,
+                secondary: prediction.secondaryText?.text || '',
+                name: full,
+                resolve: async () => {
+                    const place = prediction.toPlace();
+                    await place.fetchFields({ fields: ['location', 'formattedAddress', 'displayName'] });
+                    token = null; // a selection ends the billing session
+                    return { name: full, lat: place.location.lat(), lng: place.location.lng() };
+                }
+            };
+        });
+    };
+    mapApi.reverse = async point => {
+        const { results } = await geocoder.geocode({ location: point });
+        return results?.[0]?.formatted_address?.slice(0, 160) || '';
+    };
+    mapApi.setMarker = (which, place, onDrag) => {
+        if (markers[which]) { markers[which].map = null; delete markers[which]; }
+        if (!place || !Number.isFinite(place.lat)) return;
+        const pin = document.createElement('div');
+        pin.className = `flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-xs text-white shadow-lg ${which === 'pickup' ? 'bg-emerald-700' : 'bg-red-700'}`;
+        pin.innerHTML = `<i class="fa-solid ${which === 'pickup' ? 'fa-location-dot' : 'fa-flag-checkered'}"></i>`;
+        const marker = new markerLib.AdvancedMarkerElement({
+            map, position: { lat: place.lat, lng: place.lng }, content: pin, gmpDraggable: true,
+            title: which === 'pickup' ? 'Pick-up (drag to adjust)' : 'Drop (drag to adjust)'
+        });
+        marker.addListener('dragend', () => {
+            const at = marker.position;
+            onDrag({ lat: typeof at.lat === 'function' ? at.lat() : at.lat, lng: typeof at.lng === 'function' ? at.lng() : at.lng });
+        });
+        markers[which] = marker;
+    };
+    mapApi.focus = place => { map.panTo({ lat: place.lat, lng: place.lng }); map.setZoom(12); };
+    mapApi.fitBoth = (a, b) => {
+        const bounds = new google.maps.LatLngBounds();
+        bounds.extend({ lat: a.lat, lng: a.lng });
+        bounds.extend({ lat: b.lat, lng: b.lng });
+        map.fitBounds(bounds, 48);
+    };
+    mapApi.clearPath = () => { if (line) { line.setMap(null); line = null; } };
+    mapApi.drawPath = (path, dashed) => {
+        mapApi.clearPath();
+        line = new google.maps.Polyline({
+            path, map, strokeColor: '#17372F', strokeOpacity: dashed ? 0 : 0.9, strokeWeight: 5,
+            icons: dashed ? [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 }, offset: '0', repeat: '14px' }] : undefined
+        });
+    };
+    mapApi.setCrosshair = on => map.setOptions({ draggableCursor: on ? 'crosshair' : null });
+    // Real road distance straight from the browser (used only when the server has no routing of its own).
+    mapApi.browserRoute = async () => {
+        try {
+            const { Route } = await google.maps.importLibrary('routes');
+            const { routes } = await Route.computeRoutes({
+                origin: { lat: state.pickup.lat, lng: state.pickup.lng },
+                destination: { lat: state.dropoff.lat, lng: state.dropoff.lng },
+                travelMode: 'DRIVING',
+                fields: ['distanceMeters', 'durationMillis', 'path']
+            });
+            const route = routes?.[0];
+            if (!route?.distanceMeters) return null;
+            const minutes = Math.round((route.durationMillis || 0) / 60000);
+            const hours = Math.floor(minutes / 60);
+            return {
+                km: route.distanceMeters / 1000,
+                durationText: minutes ? (hours ? `${hours} hr${hours > 1 ? 's' : ''}${minutes % 60 ? ` ${minutes % 60} min` : ''}` : `${minutes} min`) : '',
+                path: (route.path || []).map(point => ({ lat: typeof point.lat === 'function' ? point.lat() : point.lat, lng: typeof point.lng === 'function' ? point.lng() : point.lng }))
+            };
+        } catch (error) {
+            console.warn('Browser route lookup unavailable; using the server estimate.', error);
+            return null;
+        }
+    };
 }
 
-async function placeFromPrediction(prediction) {
-    const place = prediction.toPlace();
-    await place.fetchFields({ fields: ['location', 'formattedAddress', 'displayName'] });
-    maps.token = null; // a selection ends the billing session
-    const name = (prediction.text?.text || place.formattedAddress || place.displayName || '').slice(0, 160);
-    return { name, lat: place.location.lat(), lng: place.location.lng() };
-}
-
+// ----- shared map interaction -----
 function togglePinMode(which) {
     setPinMode(state.pinMode === which ? null : which);
     if (state.pinMode) $('map-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -843,26 +995,21 @@ function setPinMode(which) {
     $('map-hint').innerHTML = which
         ? `<i class="fa-solid fa-hand-pointer text-gold-600 mr-1"></i> <strong>Tap the map</strong> to set your ${which === 'pickup' ? 'pick-up' : 'drop'} point.`
         : '<i class="fa-solid fa-hand-pointer text-gold-600 mr-1"></i> Search above, or tap the <i class="fa-solid fa-map-pin text-gold-600"></i> button and then tap the map to mark the exact spot. Drag a marker to fine-tune.';
-    if (maps.map) maps.map.setOptions({ draggableCursor: which ? 'crosshair' : null });
+    if (maps.ready) mapApi.setCrosshair(Boolean(which));
 }
 
-async function onMapClick(latLng) {
+async function onMapClick(point) {
     // Without an active pin button, a tap fills the first empty point.
     const target = state.pinMode || (!Number.isFinite(state.pickup.lat) ? 'pickup' : state.tripType !== 'local' && !Number.isFinite(state.dropoff.lat) ? 'dropoff' : null);
     if (!target) return;
-    await setPlaceFromLatLng(target, { lat: latLng.lat(), lng: latLng.lng() });
+    await setPlaceFromLatLng(target, point);
     setPinMode(null);
 }
 
 async function setPlaceFromLatLng(which, point) {
-    let name = `Pinned location (${point.lat.toFixed(4)}, ${point.lng.toFixed(4)})`;
-    try {
-        const { results } = await maps.geocoder.geocode({ location: point });
-        if (results?.[0]) name = results[0].formatted_address.slice(0, 160);
-    } catch (error) {
-        console.warn('Reverse geocoding failed', error);
-    }
-    setPlace(which, { name, lat: point.lat, lng: point.lng });
+    let name = '';
+    try { name = await mapApi.reverse(point); } catch (error) { console.warn('Reverse geocoding failed', error); }
+    setPlace(which, { name: name || `Pinned location (${point.lat.toFixed(4)}, ${point.lng.toFixed(4)})`, lat: point.lat, lng: point.lng });
     scheduleRoute(0);
 }
 
@@ -883,54 +1030,21 @@ function useMyLocation() {
 
 function updateMapMarker(which) {
     if (!maps.ready) return;
-    const place = state[which];
-    const existing = maps.markers[which];
-    if (!Number.isFinite(place.lat)) {
-        if (existing) { existing.map = null; delete maps.markers[which]; }
-        return;
-    }
-    const position = { lat: place.lat, lng: place.lng };
-    if (existing) { existing.position = position; return; }
-
-    const pin = document.createElement('div');
-    pin.className = `flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-xs text-white shadow-lg ${which === 'pickup' ? 'bg-emerald-700' : 'bg-red-700'}`;
-    pin.innerHTML = `<i class="fa-solid ${which === 'pickup' ? 'fa-location-dot' : 'fa-flag-checkered'}"></i>`;
-    const marker = new maps.markerLib.AdvancedMarkerElement({
-        map: maps.map,
-        position,
-        content: pin,
-        gmpDraggable: true,
-        title: which === 'pickup' ? 'Pick-up (drag to adjust)' : 'Drop (drag to adjust)'
-    });
-    marker.addListener('dragend', () => {
-        const dropped = marker.position;
-        const lat = typeof dropped.lat === 'function' ? dropped.lat() : dropped.lat;
-        const lng = typeof dropped.lng === 'function' ? dropped.lng() : dropped.lng;
-        setPlaceFromLatLng(which, { lat, lng });
-    });
-    maps.markers[which] = marker;
+    mapApi.setMarker(which, state[which], point => setPlaceFromLatLng(which, point));
 }
 
 function focusMapOn(which) {
     const place = state[which];
-    if (!maps.map || !Number.isFinite(place.lat)) return;
+    if (!maps.ready || !Number.isFinite(place.lat)) return;
     if (Number.isFinite(state.pickup.lat) && Number.isFinite(state.dropoff.lat) && state.tripType !== 'local') {
-        fitBoth();
+        mapApi.fitBoth(state.pickup, state.dropoff);
     } else {
-        maps.map.panTo({ lat: place.lat, lng: place.lng });
-        maps.map.setZoom(12);
+        mapApi.focus(place);
     }
 }
 
-function fitBoth() {
-    const bounds = new maps.google.maps.LatLngBounds();
-    bounds.extend({ lat: state.pickup.lat, lng: state.pickup.lng });
-    bounds.extend({ lat: state.dropoff.lat, lng: state.dropoff.lng });
-    maps.map.fitBounds(bounds, 48);
-}
-
 function clearRouteLine() {
-    if (maps.line) { maps.line.setMap(null); maps.line = null; }
+    if (maps.ready) mapApi.clearPath();
 }
 
 function decodePolyline(encoded) {
@@ -954,7 +1068,6 @@ function decodePolyline(encoded) {
 
 function drawRoute() {
     if (!maps.ready || !state.route || state.tripType === 'local' || !coordsReady()) return;
-    clearRouteLine();
     let path = state.route.clientPath;
     let dashed = false;
     if (!path && state.route.polyline) path = decodePolyline(state.route.polyline);
@@ -962,40 +1075,8 @@ function drawRoute() {
         path = [{ lat: state.pickup.lat, lng: state.pickup.lng }, { lat: state.dropoff.lat, lng: state.dropoff.lng }];
         dashed = true;
     }
-    maps.line = new maps.google.maps.Polyline({
-        path,
-        map: maps.map,
-        strokeColor: '#17372F',
-        strokeOpacity: dashed ? 0 : 0.9,
-        strokeWeight: 5,
-        icons: dashed ? [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 }, offset: '0', repeat: '14px' }] : undefined
-    });
-    fitBoth();
-}
-
-// Real road distance straight from the browser (used when the server has no routing key).
-async function browserRoute() {
-    try {
-        const { Route } = await maps.google.maps.importLibrary('routes');
-        const { routes } = await Route.computeRoutes({
-            origin: { lat: state.pickup.lat, lng: state.pickup.lng },
-            destination: { lat: state.dropoff.lat, lng: state.dropoff.lng },
-            travelMode: 'DRIVING',
-            fields: ['distanceMeters', 'durationMillis', 'path']
-        });
-        const route = routes?.[0];
-        if (!route?.distanceMeters) return null;
-        const minutes = Math.round((route.durationMillis || 0) / 60000);
-        const hours = Math.floor(minutes / 60);
-        return {
-            km: route.distanceMeters / 1000,
-            durationText: minutes ? (hours ? `${hours} hr${hours > 1 ? 's' : ''}${minutes % 60 ? ` ${minutes % 60} min` : ''}` : `${minutes} min`) : '',
-            path: (route.path || []).map(point => ({ lat: typeof point.lat === 'function' ? point.lat() : point.lat, lng: typeof point.lng === 'function' ? point.lng() : point.lng }))
-        };
-    } catch (error) {
-        console.warn('Browser route lookup unavailable; using the server estimate.', error);
-        return null;
-    }
+    mapApi.drawPath(path, dashed);
+    mapApi.fitBoth(state.pickup, state.dropoff);
 }
 
 // Inline handlers in index.html
