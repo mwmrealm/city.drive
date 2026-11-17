@@ -74,7 +74,7 @@ async function init() {
     setupForm();
     setupMobileDrawer();
     setTripType('oneway');
-    $('ai-chat-form').addEventListener('submit', handleAIQuestion);
+    initAssistant();
     if (state.config.maps.enabled) startMaps();
 }
 
@@ -291,6 +291,27 @@ function setupMobileDrawer() {
     $('mobile-menu-btn').addEventListener('click', () => $('mobile-menu').classList.toggle('hidden'));
 }
 
+// ---------- Trip assistant ----------
+// Answers from the live website settings (cars, rates, rules, routes, FAQs, contact details).
+// It can also price a trip typed like "Chennai to Madurai SUV" using the same server quote as the booking form.
+const assistant = { busy: false, lastTrip: null };
+
+const QUICK_CHIPS = [
+    ['Fare for a trip', 'fare'], ['Our cars', 'cars'], ['Night charges', 'night'], ['How to book', 'book'], ['Contact', 'contact']
+];
+
+function initAssistant() {
+    $('ai-chat-form').addEventListener('submit', handleAIQuestion);
+    const name = state.config.site.businessName;
+    addAIMessage(`Hi! I'm the ${name} trip assistant.\nTell me a trip like “Chennai to Madurai” and I'll price every car for you, or tap a topic below.`);
+    $('ai-chips').innerHTML = QUICK_CHIPS.map(([label, key]) =>
+        `<button type="button" data-chip="${key}" class="shrink-0 rounded-full border border-gold-500/50 bg-ivory-100 px-3 py-1.5 text-[11px] font-bold text-navy-900 hover:bg-gold-500/20">${esc(label)}</button>`).join('');
+    $('ai-chips').querySelectorAll('[data-chip]').forEach(button => button.addEventListener('click', () => {
+        const prompts = { fare: 'How do I get a fare for my trip?', cars: 'What cars do you have?', night: 'What are the night charges?', book: 'How do I book?', contact: 'How can I contact you?' };
+        askAssistant(prompts[button.dataset.chip]);
+    }));
+}
+
 function toggleCityDriveAI() {
     const panel = $('ai-chat-panel');
     const opening = panel.classList.contains('hidden');
@@ -304,39 +325,244 @@ function handleAIQuestion(event) {
     const input = $('ai-chat-input');
     const question = input.value.trim();
     if (!question) return;
-    addAIMessage(question, true);
     input.value = '';
-    addAIMessage(aiAnswer(question));
+    askAssistant(question);
 }
 
-function addAIMessage(text, fromCustomer = false) {
+function addAIMessage(text, fromCustomer = false, actions = []) {
     const box = $('ai-chat-messages');
-    const message = document.createElement('p');
-    message.className = fromCustomer
-        ? 'ml-auto max-w-[90%] rounded-xl rounded-tr-sm bg-navy-900 p-3 text-xs leading-relaxed text-white'
-        : 'max-w-[90%] rounded-xl rounded-tl-sm bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-sm';
-    message.textContent = text;
-    box.appendChild(message);
+    const wrap = document.createElement('div');
+    wrap.className = fromCustomer ? 'flex justify-end' : 'flex flex-col items-start gap-2';
+    const bubble = document.createElement('p');
+    bubble.className = (fromCustomer
+        ? 'max-w-[88%] rounded-xl rounded-tr-sm bg-navy-900 text-white'
+        : 'max-w-[92%] rounded-xl rounded-tl-sm bg-white text-slate-700 shadow-sm') + ' whitespace-pre-line p-3 text-xs leading-relaxed';
+    bubble.textContent = text;
+    bubble.style.whiteSpace = 'pre-line';
+    wrap.append(bubble);
+    if (actions.length) {
+        const row = document.createElement('div');
+        row.className = 'flex flex-wrap gap-2';
+        for (const action of actions) {
+            const control = document.createElement(action.href ? 'a' : 'button');
+            control.className = 'rounded-full gold-gradient px-3.5 py-2 text-[11px] font-extrabold text-navy-950 shadow';
+            control.textContent = action.label;
+            if (action.href) { control.href = action.href; if (/^https?:/.test(action.href)) { control.target = '_blank'; control.rel = 'noopener'; } }
+            else { control.type = 'button'; control.addEventListener('click', action.run); }
+            row.append(control);
+        }
+        wrap.append(row);
+    }
+    box.append(wrap);
     box.scrollTop = box.scrollHeight;
+    return wrap;
 }
 
-function aiAnswer(question) {
+async function askAssistant(question) {
+    if (assistant.busy) return;
+    assistant.busy = true;
+    addAIMessage(question, true);
+    const typing = document.createElement('div');
+    typing.className = 'w-fit rounded-xl rounded-tl-sm bg-white px-3 py-3 shadow-sm chat-dots';
+    typing.innerHTML = '<span></span><span></span><span></span>';
+    $('ai-chat-messages').append(typing);
+    $('ai-chat-messages').scrollTop = 1e6;
+    let reply;
+    try {
+        reply = await assistantReply(question);
+    } catch (error) {
+        console.warn('Assistant error', error);
+        reply = { text: 'Sorry, I could not work that out just now. Please use the booking form above, or call us and the manager will help.', actions: contactActions() };
+    }
+    await new Promise(resolve => window.setTimeout(resolve, 350));
+    typing.remove();
+    addAIMessage(reply.text, false, reply.actions || []);
+    assistant.busy = false;
+}
+
+// ----- knowledge helpers -----
+const shortName = name => String(name || '').split(',')[0].trim();
+const rupees = value => `₹${Math.round(value).toLocaleString('en-IN')}`;
+const range = values => { const lo = Math.min(...values), hi = Math.max(...values); return lo === hi ? rupees(lo) : `${rupees(lo)}–${rupees(hi)}`; };
+const carsList = () => state.config.cars;
+const contactActions = () => {
+    const site = state.config.site;
+    const actions = [];
+    if (site.phonePrimary) actions.push({ label: `📞 Call ${site.phonePrimary}`, href: `tel:+91${site.phonePrimary}` });
+    if (site.whatsapp) actions.push({ label: '💬 WhatsApp', href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi, I want to book a cab')}` });
+    return actions;
+};
+const openForm = () => { $('ai-chat-panel').classList.add('hidden'); $('ai-chat-toggle').setAttribute('aria-expanded', 'false'); $('estimator').scrollIntoView({ behavior: 'smooth' }); };
+
+const NOT_A_PLACE_FIRST = /^(how|want|need|going|go|ready|back|used|able|me|us|you|it|them|talk|speak|call|pay|know|happy|time|way|trying|plan|planning|like|have|has|get|what|which|when|where|do|can|is|are)$/i;
+const NOT_A_PLACE_SECOND = /^(book|pay|call|know|get|go|see|check|reserve|ask|use|travel|cancel|me|you|us|them|it|do|make|find|help|contact|talk|speak)$/i;
+
+function parseTrip(text) {
+    const match = /(?:^|\s)(?:from\s+)?([a-z][a-z .'-]{1,38}?)\s+(?:to|->|→|–|—)\s+([a-z][a-z .'-]{1,38}?)(?=\s+(?:in|by|for|with|on|at|using|via|round|return|one|suv|sedan|cng|car|cab|taxi|tomorrow|today)\b|[?.,!]|$)/i.exec(` ${text}`);
+    if (!match) return null;
+    const from = match[1].trim().replace(/^(?:i want to go|i need|going|trip|fare|price|cost|taxi|cab)\s+(?:from\s+)?/i, '').trim();
+    const to = match[2].trim();
+    if (from.length < 2 || to.length < 2 || NOT_A_PLACE_FIRST.test(from.split(/\s+/)[0]) || NOT_A_PLACE_SECOND.test(to.split(/\s+/)[0])) return null;
+    return { from, to };
+}
+
+function findListedPlace(name) {
+    const needle = name.toLowerCase();
+    const names = new Set([...FALLBACK_CITIES]);
+    state.config.routes.forEach(route => { names.add(route.origin); names.add(route.destination); });
+    return [...names].find(candidate => candidate.toLowerCase() === needle) || null;
+}
+
+async function resolveForAssistant(name) {
+    if (maps.ready) {
+        const [first] = await mapApi.suggest(name);
+        if (first) return first.resolve();
+        return null;
+    }
+    const listed = findListedPlace(name);
+    return listed ? { name: listed } : null;
+}
+
+async function tripReply(question, trip) {
     const q = question.toLowerCase();
-    const { cars, rules, routes, faqs } = state.config;
-    if (/book|booking|reserve|manager|confirm|request/.test(q)) {
-        return 'Enter your pick-up and drop (search or pin them on the map), choose a car and date, then tap “Review Fare & Book”. Your request goes to the manager, and the trip is confirmed only when the manager replies.';
+    const roundtrip = /round|return/.test(q);
+    const wanted = carsList().filter(car => q.includes(car.name.toLowerCase()) || (car.id && q.includes(car.id.replace(/_/g, ' '))));
+    const cars = wanted.length ? wanted : carsList();
+
+    const [from, to] = await Promise.all([resolveForAssistant(trip.from), resolveForAssistant(trip.to)]);
+    if (!from || !to) {
+        const missing = [!from && trip.from, !to && trip.to].filter(Boolean).join(' or ');
+        return {
+            text: maps.ready
+                ? `I couldn't find “${missing}” on the map. Try the full place name (for example “Chennai Central to Madurai Junction”), or use the booking form above.`
+                : `I only know the routes listed on this site, and “${missing}” isn't one of them. Please use the booking form above to search, or call us and the manager will quote the fare.`,
+            actions: [{ label: 'Open booking form', run: openForm }, ...contactActions()]
+        };
     }
-    if (/car|vehicle|seat|suv|sedan|cng/.test(q)) {
-        return `Available cars: ${cars.map(car => `${car.name} (${car.subtitle}) at ${inr(car.ratePerKm)}/km`).join('; ')}. The fare shown is an estimate; the manager confirms availability and the final fare.`;
+
+    const date = addDays(today(), 1);
+    const quotes = await Promise.all(cars.map(car => postJson('/api/quote', {
+        tripType: roundtrip ? 'roundtrip' : 'oneway', carId: car.id, pickupDate: date, returnDate: roundtrip ? date : null, pickupTime: '09:00',
+        pickup: from, dropoff: to
+    })));
+    const first = quotes[0];
+    const km = Math.round(first.distanceKm);
+    const approximate = ['straight-line-estimate', 'default-estimate'].includes(first.distanceSource);
+    const night = cars.map(car => car.nightAllowance);
+    const lines = [
+        `${shortName(from.name)} → ${shortName(to.name)}`,
+        `${approximate ? '≈' : ''}${km} km${first.duration ? ` · about ${first.duration}` : ''} one way${approximate ? ' (approximate)' : ''}`,
+        '',
+        ...quotes.map((quote, i) => `${cars[i].name}: ${rupees(quote.fare.total)}`),
+        '',
+        roundtrip
+            ? 'Same-day round trip (there and back, driver allowance and tolls included). Extra days add the driver allowance and the minimum km for each day.'
+            : 'Daytime one-way fare with driver allowance and estimated tolls.',
+        `Night pick-up (${formatHour(state.config.rules.nightStartHour)}–${formatHour(state.config.rules.nightEndHour)}) adds ${range(night)}; a roof carrier adds ${range(cars.map(car => car.luggageCarrierCost))} if you need one.`,
+        'The manager confirms availability and the final fare.'
+    ];
+    assistant.lastTrip = { from, to, roundtrip, carId: cars.length === 1 ? cars[0].id : null };
+    return {
+        text: lines.join('\n'),
+        actions: [{ label: 'Use this trip in the form', run: () => useTripInForm(assistant.lastTrip) }, ...contactActions().slice(0, 1)]
+    };
+}
+
+function useTripInForm(trip) {
+    if (!trip) return;
+    setTripType(trip.roundtrip ? 'roundtrip' : 'oneway');
+    setPlace('pickup', trip.from);
+    setPlace('dropoff', trip.to);
+    if (trip.carId) selectCar(trip.carId);
+    scheduleRoute(0);
+    openForm();
+}
+
+function faqMatch(q) {
+    const words = new Set(q.split(/\W+/).filter(word => word.length > 3));
+    let best = null;
+    let bestScore = 0;
+    for (const faq of state.config.faqs) {
+        const haystack = `${faq.question} ${faq.answer}`.toLowerCase();
+        const score = [...words].filter(word => haystack.includes(word)).length;
+        if (score > bestScore) { best = faq; bestScore = score; }
     }
-    if (/fare|price|cost|rate|₹|rupee/.test(q)) {
-        return `Rates: ${cars.map(car => `${inr(car.ratePerKm)}/km for ${car.name}`).join(', ')}. Estimates include the driver allowance and tolls at about ₹${rules.tollPerKm}/km. Minimum billing is ${rules.minimumBillableKm} km; night and luggage fees may apply. The booking form shows a live price for your exact route.`;
+    return bestScore >= 2 ? best : null;
+}
+
+async function assistantReply(question) {
+    const q = question.toLowerCase().trim();
+    const { cars, rules, routes, site } = state.config;
+    const has = pattern => pattern.test(q);
+
+    if (has(/^(hi|hello|hey|hii+|namaste|vanakkam|good (morning|afternoon|evening))\b/) && q.split(/\s+/).length <= 4) {
+        return { text: 'Hello! 👋 Give me a trip like “Chennai to Bengaluru” and I’ll price every car. I can also explain our cars, night charges, tolls and how to book.' };
     }
-    const faq = faqs.find(item => item.question.toLowerCase().split(/\W+/).filter(word => word.length > 4).some(word => q.includes(word)));
-    if (faq) return faqText(faq.answer);
-    const route = routes.find(item => q.includes(item.origin.toLowerCase()) && q.includes(item.destination.toLowerCase()));
-    if (route) return `${route.origin} to ${route.destination} is about ${route.distanceKm} km${route.duration ? ` (${route.duration})` : ''}. Enter it in the booking form to see the live fare for each car.`;
-    return 'I can help with fares, cars, night charges, tolls and booking steps. For anything else, tap the call or WhatsApp button and the manager will help.';
+    if (has(/\b(thanks|thank you|thx|ok thanks|great|perfect)\b/) && q.split(/\s+/).length <= 5) {
+        return { text: 'You’re welcome! Tap “Open booking form” whenever you’re ready to book.', actions: [{ label: 'Open booking form', run: openForm }] };
+    }
+
+    const trip = parseTrip(question);
+    if (trip) return tripReply(question, trip);
+
+    if (has(/\b(phone|call|number|contact|whatsapp|instagram|manager|human|support|talk|speak|reach)\b/)) {
+        return {
+            text: `You can reach the ${site.businessName} manager 24/7.\n${site.phonePrimary ? `Phone: +91 ${site.phonePrimary}\n` : ''}${site.phoneAlternate ? `Alternate: +91 ${site.phoneAlternate}\n` : ''}${site.instagram ? `Instagram: @${site.instagram}` : ''}`.trim(),
+            actions: contactActions()
+        };
+    }
+    if (has(/\b(night|late|midnight|early morning)\b/)) {
+        return { text: `Night charges apply when pick-up is between ${formatHour(rules.nightStartHour)} and ${formatHour(rules.nightEndHour)}. It is a flat allowance added once to the fare:\n${cars.map(car => `${car.name}: +${rupees(car.nightAllowance)}`).join('\n')}` };
+    }
+    if (has(/\b(toll|permit|tax|state entry)\b/)) {
+        return { text: `Fares include an estimated toll and permit amount of about ₹${rules.tollPerKm} per billed km. Toll gates and state entry permits are charged as actuals during the journey, so the final amount can differ slightly.` };
+    }
+    if (has(/\b(minimum|min km|min\.|minimum km|base km)\b/)) {
+        return { text: `One-way trips are billed for at least ${rules.minimumBillableKm} km. For round trips the minimum applies for each day of the trip.` };
+    }
+    if (has(/\b(round|return|two way|back and forth|come back)\b/)) {
+        return { text: `Round trips are billed for the distance there and back (at least ${rules.minimumBillableKm} km for each day), plus the driver allowance for every day.\nTry “Chennai to Madurai round trip” and I’ll price it.` };
+    }
+    if (has(/\b(local|hourly|package|within the city|city ride|city drive)\b/)) {
+        return { text: `Local Hourly is a ${rules.localPackageKm} km city package at each car's per-km rate plus the driver allowance:\n${cars.map(car => `${car.name}: about ${rupees(rules.localPackageKm * car.ratePerKm + car.driverAllowance + rules.localPackageKm * rules.tollPerKm)}`).join('\n')}\nChoose “Local Hourly” in the booking form to see your exact fare.`, actions: [{ label: 'Open booking form', run: openForm }] };
+    }
+    if (has(/\b(luggage|bags?|carrier|roof|suitcase|boot|dicky)\b/)) {
+        return { text: `If you have extra luggage, tick “Luggage Carrier Required on Roof” in the booking form. It adds ${cars.map(car => `${rupees(car.luggageCarrierCost)} (${car.name})`).join(', ')}.` };
+    }
+    if (has(/\b(cars?|vehicles?|fleet|seats?|seater|suv|sedan|cng|innova|ertiga|dzire|etios|amaze|aura|marazzo|capacity|people|family|group|passengers)\b/) && !has(/\b(per km|rate|price|cost|fare|how much)\b/)) {
+        return { text: `Our cars:\n${cars.map(car => `• ${car.name} — ${car.subtitle}\n  ${car.description}\n  ${rupees(car.ratePerKm)}/km, driver allowance ${rupees(car.driverAllowance)}/day`).join('\n')}\nTell me your route and I’ll price them.` };
+    }
+    if (has(/\b(fare|price|cost|rate|rates|charge|charges|how much|per km|tariff|estimate|quote)\b/)) {
+        return { text: `Rates per km: ${cars.map(car => `${car.name} ${rupees(car.ratePerKm)}`).join(', ')}. The fare adds the driver allowance, estimated tolls, and night or roof-carrier extras when they apply.\nFor an exact price, type your trip like “Chennai to Madurai” (add “SUV” or “round trip” if you like).` };
+    }
+    if (has(/\b(book|booking|reserve|reservation|confirm|confirmation|request|how to)\b/)) {
+        return {
+            text: '1. Enter your pick-up and drop (search, or tap the pin button and tap the map).\n2. Choose date, time and a car — the fare updates live.\n3. Add your name and mobile number and tap “Review Fare & Book”.\n4. Your request goes to the manager, who calls you to confirm. The trip is confirmed only after the manager replies.',
+            actions: [{ label: 'Open booking form', run: openForm }]
+        };
+    }
+    if (has(/\b(24|open|available|availability|timing|hours|time|when)\b/)) {
+        return { text: 'We take bookings 24 hours a day, every day, including night pick-ups. Availability for your date is confirmed by the manager after you send the request.', actions: contactActions().slice(0, 1) };
+    }
+    if (has(/\b(pay|payment|upi|cash|advance|deposit|refund|cancel|cancellation|invoice|receipt|gst|bill|discount|offer|coupon)\b/)) {
+        return { text: 'Payment, advance, cancellation and billing details are agreed with the manager when they confirm your trip, so I don’t want to guess. Please ask them directly.', actions: contactActions() };
+    }
+    if (has(/\b(route|routes|city|cities|town|towns|where|outstation|destination|places|intercity)\b/)) {
+        return { text: `Popular routes:\n${routes.slice(0, 8).map(route => `• ${route.origin} → ${route.destination} (${route.distanceKm} km)`).join('\n')}\nWe also go to other towns across India. Type any “A to B” and I’ll price it.` };
+    }
+    const mentioned = [...new Set(routes.flatMap(route => [route.origin, route.destination]))].filter(city => q.includes(city.toLowerCase()));
+    if (mentioned.length) {
+        const city = mentioned[0];
+        const options = routes.filter(route => route.origin === city || route.destination === city).slice(0, 6);
+        return { text: `Yes, we serve ${city}. Routes we run often:\n${options.map(route => `• ${route.origin} → ${route.destination} (${route.distanceKm} km)`).join('\n')}\nTell me where you’re going, for example “${city} to ${options[0] ? (options[0].origin === city ? options[0].destination : options[0].origin) : 'Madurai'}”.` };
+    }
+    const faq = faqMatch(q);
+    if (faq) return { text: faqText(faq.question ? faq.answer : '') };
+
+    return {
+        text: 'I can price a trip (try “Chennai to Madurai”), explain our cars, night charges, tolls and round trips, and walk you through booking. For anything else, the manager will gladly help.',
+        actions: contactActions()
+    };
 }
 
 // ---------- places: typing and suggestions ----------
@@ -816,10 +1042,11 @@ async function startOsm() {
     loadStyle('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css');
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js');
     const L = window.L;
-    const map = L.map($('map'), { zoomControl: true, scrollWheelZoom: false }).setView([13.0827, 80.2707], 6);
+    const map = L.map($('map'), { zoomControl: true, scrollWheelZoom: false, attributionControl: false }).setView([13.0827, 80.2707], 6);
+    L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(map);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
     }).addTo(map);
     map.on('click', event => onMapClick({ lat: event.latlng.lat, lng: event.latlng.lng }));
     map.on('focus', () => map.scrollWheelZoom.enable());

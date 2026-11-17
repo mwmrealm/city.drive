@@ -5,7 +5,8 @@
 * **Backend** – Node.js. The server recalculates every fare itself, so a customer cannot change the price from the browser.
 
 ```
-server.js          API + pages          lib/   storage (Supabase / local), settings, road routing (OSRM / Google)
+lib/app.js         API + pages          lib/   storage (Supabase / local), settings, road routing (OSRM / Google)
+start.js           runs the app locally api/index.js + vercel.json   Vercel entry point
 public/index.html  customer website     public/app.js      website logic (maps, live fare)
 public/admin.html  admin app            public/fare.js     fare formula (shared by browser and server)
 supabase/schema.sql  database tables
@@ -47,15 +48,24 @@ All numbers are editable in **Admin → Cars & prices**. The manager still confi
 
 Admin -> **Setup** shows which map and routing service is active.
 
-## 4. Put it online with Supabase (so admin works from any phone)
+## 4. Put it online with Vercel + Supabase (so admin works from any phone)
 
-1. **Supabase:** create a project → *SQL Editor* → paste all of `supabase/schema.sql` → Run. In *Project Settings → API Keys* copy the **Project URL** and a **Secret key** (`sb_secret_…`).
+1. **Supabase:** create a project -> *SQL Editor* -> paste all of `supabase/schema.sql` -> Run. In *Project Settings -> API* copy the **Project URL** (only `https://xxxx.supabase.co`, nothing after `.co`) and a **Secret key** (`sb_secret_...`).
 2. **GitHub:** upload this folder to a private repository (never upload `.env`).
-3. **Render:** *New → Web Service* → your repo → Runtime Node, build `npm ci`, start `npm start`. Add the environment variables: `NODE_ENV=production`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, plus the Google keys only if you use Google.
-4. Open `https://YOUR-SERVICE.onrender.com/api/health` – `storageBackend` must say `supabase`. Then sign in at `/admin`, change a price, refresh the website.
-5. Free Render services sleep after inactivity (first visit can take ~1 minute). For a live business use a paid plan, and enable Supabase backups.
+3. **Vercel:** sign in with GitHub -> *Add New -> Project* -> import the repository.
+   * Framework Preset: **Other**. Leave Build Command empty. Set **Output Directory** to `public`. Install Command: `npm install`.
+   * Environment Variables: `ADMIN_USERNAME`, `ADMIN_PASSWORD` (12+ characters), `ADMIN_SESSION_SECRET` (32+ random characters), `SUPABASE_URL`, `SUPABASE_SECRET_KEY` (plus the Google keys only if you use Google).
+   * Click **Deploy**.
+4. Open `https://YOUR-PROJECT.vercel.app/api/health` - it must say `"status":"ok"` and `"storageBackend":"supabase"`. Then sign in at `/admin`, change a price, refresh the website.
+5. After changing an environment variable in Vercel you must **Redeploy** (Deployments -> ... -> Redeploy).
 
-If you already ran an older version, run `supabase/schema.sql` again – it adds the table for uploaded photos and does not touch existing data.
+Notes for Vercel:
+* Vercel has no permanent disk, so Supabase is required (photos are stored in Supabase too).
+* Vercel's free **Hobby** plan is for personal, non-commercial use. A taxi business should use the **Pro** plan.
+* Rate limits (to slow down abuse) are tracked per server instance on Vercel, so they are a soft limit.
+* The same project also runs on any normal Node host (Render, a VPS): the start command is `npm start`.
+
+If you already ran an older version, run `supabase/schema.sql` again - it adds the table for uploaded photos and does not touch existing data.
 
 ## 5. Install the admin as a phone app
 
