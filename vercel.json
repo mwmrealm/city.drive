@@ -14,7 +14,7 @@
   },
   "headers": [
     {
-      "source": "/admin-sw.js",
+      "source": "/(admin-sw|sw).js",
       "headers": [
         {
           "key": "Cache-Control",

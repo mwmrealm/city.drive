@@ -1,4 +1,5 @@
 {
+  "id": "/admin",
   "name": "City Drive Booking Desk",
   "short_name": "CD Admin",
   "description": "City Drive bookings, prices and fleet management",

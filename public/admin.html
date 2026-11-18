@@ -640,7 +640,7 @@
         }
 
         const ruleFields = [
-            ['minimumBillableKm', 'Minimum billable distance (km / day)', 1, 1], ['tollPerKm', 'Estimated toll per km (₹)', 0, 0.5],
+            ['minimumBillableKm', 'Minimum billed km for long trips (per day)', 0, 1], ['shortTripKm', 'Short trip = up to (km one way, 0 = off)', 0, 1], ['shortTripMinimumKm', 'Minimum billed km for short trips', 0, 1], ['tollPerKm', 'Estimated toll per km (₹)', 0, 0.5],
             ['fallbackIntercityKm', 'Estimate if route unknown (km)', 1, 1], ['localPackageKm', 'Local package distance (km)', 1, 1],
             ['nightStartHour', 'Night charges start (hour 0-23)', 0, 1], ['nightEndHour', 'Night charges end (hour 0-23)', 0, 1]
         ];
@@ -802,7 +802,7 @@
         });
         window.addEventListener('appinstalled', () => { $('install-button').hidden = true; });
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-            navigator.serviceWorker.register('/admin-sw.js').catch(() => {});
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
         }
 
         // ---------- start ----------

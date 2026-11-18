@@ -75,6 +75,8 @@ async function init() {
     setupMobileDrawer();
     setTripType('oneway');
     initAssistant();
+    setupInstall();
+    setupFloatingButtons();
     if (state.config.maps.enabled) startMaps();
 }
 
@@ -518,7 +520,8 @@ async function assistantReply(question) {
         return { text: `Fares include an estimated toll and permit amount of about ₹${rules.tollPerKm} per billed km. Toll gates and state entry permits are charged as actuals during the journey, so the final amount can differ slightly.` };
     }
     if (has(/\b(minimum|min km|min\.|minimum km|base km)\b/)) {
-        return { text: `One-way trips are billed for at least ${rules.minimumBillableKm} km. For round trips the minimum applies for each day of the trip.` };
+        const short = rules.shortTripKm > 0 ? `Short trips up to ${rules.shortTripKm} km one way are billed from ${rules.shortTripMinimumKm} km upward (almost the real distance). ` : '';
+        return { text: `${short}Longer one-way trips are billed for at least ${rules.minimumBillableKm} km. For round trips the minimum applies for each day of the trip.` };
     }
     if (has(/\b(round|return|two way|back and forth|come back)\b/)) {
         return { text: `Round trips are billed for the distance there and back (at least ${rules.minimumBillableKm} km for each day), plus the driver allowance for every day.\nTry “Chennai to Madurai round trip” and I’ll price it.` };
@@ -812,7 +815,7 @@ function renderFare() {
             <p class="text-right text-[10px] text-slate-300 leading-snug">${fare.billedKm} km billed${fare.days > 1 ? ` · ${fare.days} days` : ''}<br>Tolls are estimated</p>
         </div>
         <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-white/10 pt-3 text-[11px] text-slate-200">
-            <span>${fare.billedKm} km × ${inr(fare.ratePerKm)}</span><span class="text-right font-bold">${inr(fare.baseFare)}</span>
+            <span>${fare.billedKm} km${fare.minimumApplied ? ' (minimum)' : ''} × ${inr(fare.ratePerKm)}</span><span class="text-right font-bold">${inr(fare.baseFare)}</span>
             <span>Driver allowance${fare.days > 1 ? ` (${fare.days} days)` : ''}</span><span class="text-right font-bold">${inr(fare.driverAllowance)}</span>
             <span>Est. toll &amp; permit</span><span class="text-right font-bold">${inr(fare.tollEstimate)}</span>
             ${extras.map(extra => `<span class="col-span-2 text-gold-400 font-bold">${esc(extra)}</span>`).join('')}
@@ -868,7 +871,7 @@ function showFareModal(quote, name, phone) {
         </div>
         <div class="space-y-2 pt-2 text-xs">
             ${row(`Car class (${esc(quote.carName)})`, `${inr(fare.ratePerKm)} / KM`)}
-            ${row(`Base fare (${fare.billedKm} KM × ${inr(fare.ratePerKm)})`, inr(fare.baseFare))}
+            ${row(`Base fare (${fare.billedKm} KM${fare.minimumApplied ? ' minimum' : ''} × ${inr(fare.ratePerKm)})`, inr(fare.baseFare))}
             ${row(`Driver allowance${fare.days > 1 ? ` (${fare.days} days)` : ''}`, inr(fare.driverAllowance))}
             ${fare.isNight ? row('Night allowance', `+${inr(fare.nightAllowance)}`, 'text-amber-700') : ''}
             ${fare.luggageCost ? row('Roof luggage carrier', `+${inr(fare.luggageCost)}`) : ''}
@@ -1042,7 +1045,7 @@ async function startOsm() {
     loadStyle('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css');
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js');
     const L = window.L;
-    const map = L.map($('map'), { zoomControl: true, scrollWheelZoom: false, attributionControl: false }).setView([13.0827, 80.2707], 6);
+    const map = L.map($('map'), { zoomControl: true, scrollWheelZoom: false, attributionControl: false, dragging: !L.Browser.mobile, tap: true }).setView([13.0827, 80.2707], 6);
     L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(map);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -1307,4 +1310,41 @@ function drawRoute() {
 }
 
 // Inline handlers in index.html
-Object.assign(window, { setTripType, closeFareModal, confirmAndSubmitReservation, resetAndFinish, toggleFloatingMenu, toggleCityDriveAI, dismissBrandIntro });
+// ---------- installable app (PWA) ----------
+let installEvent = null;
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+function setupInstall() {
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+    const buttons = [...document.querySelectorAll('[data-install-app]')];
+    const show = () => buttons.forEach(button => button.classList.remove('hidden'));
+    if (isStandalone()) return;
+    window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installEvent = event; show(); });
+    window.addEventListener('appinstalled', () => { installEvent = null; buttons.forEach(button => button.classList.add('hidden')); });
+    if (isIos()) show();   // Safari has no install prompt; we show the steps instead
+    buttons.forEach(button => button.addEventListener('click', installApp));
+}
+
+async function installApp() {
+    if (installEvent) {
+        installEvent.prompt();
+        await installEvent.userChoice.catch(() => {});
+        installEvent = null;
+        return;
+    }
+    $('install-help').classList.remove('hidden');
+    $('install-help-text').textContent = isIos()
+        ? 'Tap the Share button at the bottom of Safari, scroll down and choose “Add to Home Screen”, then tap Add.'
+        : 'Open your browser menu (⋮) and choose “Install app” or “Add to Home screen”.';
+}
+
+// Hide the floating buttons while typing so they never cover the form or the keyboard.
+function setupFloatingButtons() {
+    const dock = document.querySelectorAll('[data-fab]');
+    const hide = hidden => dock.forEach(node => node.classList.toggle('fab-hidden', hidden));
+    document.addEventListener('focusin', event => { if (event.target.matches('input, select, textarea') && !event.target.closest('#ai-chat-panel')) hide(true); });
+    document.addEventListener('focusout', () => window.setTimeout(() => { if (!document.activeElement?.matches('input, select, textarea')) hide(false); }, 150));
+}
+
+Object.assign(window, { setTripType, closeFareModal, confirmAndSubmitReservation, resetAndFinish, toggleFloatingMenu, toggleCityDriveAI, dismissBrandIntro, installApp });

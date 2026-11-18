@@ -21,6 +21,16 @@ export function isNightTime(pickupTime, startHour, endHour) {
 }
 
 /**
+ * Minimum billed km. Short trips (up to rules.shortTripKm one way) are billed close to the real
+ * distance (at least rules.shortTripMinimumKm); longer trips use the normal minimum.
+ */
+export function minimumFor(rules, oneWayKm) {
+    const shortLimit = Number(rules.shortTripKm) || 0;
+    if (shortLimit > 0 && oneWayKm <= shortLimit) return Number(rules.shortTripMinimumKm) || 0;
+    return Number(rules.minimumBillableKm) || 0;
+}
+
+/**
  * @param {object} rules   settings.rules  { minimumBillableKm, tollPerKm, localPackageKm, nightStartHour, nightEndHour }
  * @param {object} car     settings.cars[i] { ratePerKm, driverAllowance, nightAllowance, luggageCarrierCost, name }
  * @param {object} trip    { tripType, distanceKm (one way road km), pickupDate, returnDate, pickupTime, luggageCarrier }
@@ -36,10 +46,10 @@ export function computeFare(rules, car, trip) {
         billedKm = rules.localPackageKm;
     } else if (trip.tripType === 'roundtrip') {
         travelKm = Math.round(oneWayKm * 2);
-        billedKm = Math.max(travelKm, rules.minimumBillableKm * days);
+        billedKm = Math.max(travelKm, minimumFor(rules, oneWayKm) * days);
     } else {
         travelKm = Math.round(oneWayKm);
-        billedKm = Math.max(travelKm, rules.minimumBillableKm);
+        billedKm = Math.max(travelKm, minimumFor(rules, oneWayKm));
     }
 
     const baseFare = Math.round(billedKm * car.ratePerKm);
@@ -54,6 +64,7 @@ export function computeFare(rules, car, trip) {
         days,
         travelKm,
         billedKm,
+        minimumApplied: billedKm > travelKm && trip.tripType !== 'local',
         ratePerKm: car.ratePerKm,
         baseFare,
         driverAllowance,
